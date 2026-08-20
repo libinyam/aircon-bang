@@ -1,0 +1,9 @@
+<view class="container">
+  <view class="card">
+    <view class="doc-title">{{title}}</view>
+    <view class="doc-para" wx:for="{{paras}}" wx:key="*this">{{item}}</view>
+  </view>
+  <!-- 删除申请入口:仅隐私说明页 -->
+  <button class="btn-danger-ghost mt16" wx:if="{{showDelete}}" bindtap="requestDeletion"
+          disabled="{{acting}}">申请删除账号数据</button>
+</view>

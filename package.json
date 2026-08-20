@@ -1,0 +1,21 @@
+{
+  "name": "aircon-bang",
+  "private": true,
+  "description": "空调帮 — 离线测试与工程脚本(小程序/云函数本身不经此构建)",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint .",
+    "sync-shared": "node scripts/sync-shared.js"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/test"],
+    "moduleNameMapper": {
+      "^wx-server-sdk$": "<rootDir>/test/stubs/wx-server-sdk.js"
+    }
+  }
+}

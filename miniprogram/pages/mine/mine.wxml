@@ -1,0 +1,136 @@
+<view class="page">
+  <!-- 登录失败:不展示身份结论,只给重试 -->
+  <block wx:if="{{loginError}}">
+    <view class="body" style="padding-top:120rpx">
+      <view class="card center-card">
+        <view class="ic il-net-error ic-big"></view>
+        <view class="state-title mt8">登录失败</view>
+        <view class="text-sub mt8">网络异常,暂时无法确认你的身份</view>
+        <button class="btn-cta mt24" hover-class="hv-press" bindtap="retryLogin">重试</button>
+      </view>
+    </view>
+  </block>
+  <block wx:else>
+  <!-- 冷色渐变头部 -->
+  <view class="mine-head">
+    <view class="prof-row">
+      <!-- 展示头像(选填):认证师傅可点击补传/更换,公开展示在商品卖家卡 -->
+      <view class="avatar-box" bindtap="changeAvatar">
+        <image class="avatar" src="{{avatarUrl}}" mode="aspectFill" wx:if="{{avatarUrl}}" />
+        <view class="avatar" wx:else>{{avatarText}}</view>
+        <view class="avatar-edit" wx:if="{{isApprovedMaster}}">{{avatarUrl ? '更换' : '设置'}}</view>
+      </view>
+      <view class="flex-1">
+        <view class="row gap12">
+          <text class="prof-name">{{master && master.status === 'approved' ? master.realName : (user.contactName || '微信用户')}}</text>
+          <view class="chip chip-blue" wx:if="{{master && master.status === 'approved'}}">平台师傅</view>
+          <view class="chip chip-green" wx:if="{{master && master.status === 'approved'}}">已实名</view>
+          <view class="chip chip-amber" wx:if="{{master && master.status === 'pending'}}">入驻审核中</view>
+        </view>
+        <view class="prof-sub" wx:if="{{master && master.status === 'approved'}}">{{master.serviceCity}} · {{catText}}</view>
+        <view class="prof-sub" wx:else>发布需求,让师傅上门服务</view>
+      </view>
+    </view>
+    <view class="stats-row" wx:if="{{master && master.status === 'approved'}}">
+      <view class="flex-1"><text class="stat-num">{{master.stats.done}}</text><text class="stat-lb">完成订单</text></view>
+      <view class="flex-1"><text class="stat-num stat-gold">{{avgStars || '—'}}</text><text class="stat-lb">服务评分</text></view>
+      <view class="flex-1"><text class="stat-num">{{master.stats.cancelled || 0}}</text><text class="stat-lb">接单取消</text></view>
+    </view>
+  </view>
+
+  <view class="body body-overlap">
+    <!-- 登录后的角色入口：认证师傅进入接单大厅，服务用户前往入驻申请 -->
+    <view class="card role-state-card" hover-class="hv-cell" bindtap="goRoleWorkspace">
+      <view class="role-state-dot {{isApprovedMaster ? 'role-state-dot--master' : ''}}"></view>
+      <view class="flex-1">
+        <view class="role-state-title">{{roleTitle}}</view>
+        <view class="role-state-sub">{{roleDescription}}</view>
+      </view>
+      <view class="role-state-action">{{roleAction}}</view>
+      <view class="ic ic-chev ic-sm"></view>
+    </view>
+    <!-- 金色会员条(师傅) -->
+    <view class="gold-bar" wx:if="{{master && master.status === 'approved' && memberValid}}">
+      <view class="ic ic-star-gold"></view>
+      <view class="flex-1">
+        <view class="gold-title">接单会员 · 有效</view>
+        <view class="gold-sub">有效期至 {{memberExpireText}} · 到期前续费不断档</view>
+      </view>
+      <view class="gold-btn" bindtap="callService">立即续费</view>
+    </view>
+    <view class="gold-bar gold-bar--warn" wx:if="{{master && master.status === 'approved' && !memberValid}}">
+      <view class="flex-1">
+        <view class="gold-title gold-title--warn">会员未开通 / 已到期</view>
+        <view class="gold-sub gold-sub--warn">联系平台开通后即可抢单</view>
+      </view>
+      <view class="gold-btn gold-btn--brand" bindtap="callService">联系开通</view>
+    </view>
+
+    <!-- 功能列表(分组竖排:左图标+标题+右提示+箭头) -->
+    <view class="card list-card">
+      <view class="cell" hover-class="hv-cell" bindtap="nav" data-url="/pages/orders/orders">
+        <view class="ic ic-orders-f cell-ic"></view>
+        <text class="cell-t">我发布的</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+      <view class="cell" hover-class="hv-cell" wx:if="{{master && master.status === 'approved'}}"
+            bindtap="nav" data-url="/pages/orders/orders?mode=master">
+        <view class="ic ic-mytake-f cell-ic"></view>
+        <text class="cell-t">我的接单</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+      <!-- 我的上架:有师傅档案即显示(资格被撤销后仍需进来看下架原因/标已售/删除,评审);
+           发布与重新上架的 approved 门槛由服务端与页面内闸把守 -->
+      <view class="cell" hover-class="hv-cell" wx:if="{{master}}"
+            bindtap="nav" data-url="/pages/myListings/myListings">
+        <view class="ic ic-tab-shop cell-ic"></view>
+        <text class="cell-t">我的上架</text>
+        <text class="cell-hint">卖空调 · 新机二手</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+      <view class="cell" hover-class="hv-cell" wx:if="{{!master}}" bindtap="switchToPool">
+        <view class="ic ic-join-sq cell-ic"></view>
+        <text class="cell-t">师傅入驻</text>
+        <text class="cell-hint">不抽成 · 费用直收</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+      <view class="cell share-cell" hover-class="hv-cell">
+        <view class="ic ic-share-f cell-ic"></view>
+        <text class="cell-t">推荐给朋友</text>
+        <view class="ic ic-chev ic-sm"></view>
+        <button class="share-overlay" open-type="share" aria-label="推荐给朋友"></button>
+      </view>
+      <view class="cell" hover-class="hv-cell" bindtap="callService">
+        <view class="ic ic-headset-f cell-ic"></view>
+        <text class="cell-t">联系客服</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+    </view>
+
+    <view class="card list-card">
+      <view class="cell" hover-class="hv-cell" bindtap="nav" data-url="/pages/agreement/agreement?type=user">
+        <view class="ic ic-doc-f cell-ic"></view>
+        <text class="cell-t">用户协议</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+      <view class="cell" hover-class="hv-cell" bindtap="nav" data-url="/pages/agreement/agreement?type=master">
+        <view class="ic ic-doc-f cell-ic"></view>
+        <text class="cell-t">入驻协议</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+      <view class="cell" hover-class="hv-cell" bindtap="nav" data-url="/pages/agreement/agreement?type=privacy">
+        <view class="ic ic-shield-f cell-ic"></view>
+        <text class="cell-t">隐私说明</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+      <view class="cell" hover-class="hv-cell" wx:if="{{isAdmin}}" bindtap="nav" data-url="/pages/admin/admin">
+        <view class="ic ic-gear-f cell-ic"></view>
+        <text class="cell-t">管理后台</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
+    </view>
+
+    <view class="text-sub openid-row" bindlongpress="copyOpenid">长按复制我的用户标识(配置管理员用)</view>
+  </view>
+  </block>
+</view>

@@ -1,0 +1,8 @@
+<view class="tab-bar" aria-role="tablist">
+  <view class="tab-item" wx:for="{{list}}" wx:key="pagePath"
+        bindtap="switchTab" data-index="{{index}}" data-path="{{item.pagePath}}"
+        aria-role="tab" aria-label="{{item.text}}" aria-selected="{{selected === index}}">
+    <view class="ic {{item.icon}} {{selected === index ? 'on' : ''}} tab-ic" aria-hidden="true"></view>
+    <view class="tab-text {{selected === index ? 'tab-text-on' : ''}}">{{item.text}}</view>
+  </view>
+</view>

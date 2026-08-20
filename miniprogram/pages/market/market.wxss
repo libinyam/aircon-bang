@@ -1,0 +1,29 @@
+/* 暖色渐变头:与导航栏 #FAF0E7 无缝衔接(与首页 warm-head 同语言) */
+.mk-head {
+  background: linear-gradient(180deg, #FAF0E7, #F6F7F9);
+  padding: 16rpx 24rpx 20rpx;
+}
+.mk-chips { display: flex; gap: 14rpx; }
+.mk-chip {
+  font-size: 26rpx;
+  color: #454F5E;
+  background: #fff;
+  border: 1rpx solid #ECEEF2;
+  border-radius: 999rpx;
+  padding: 10rpx 30rpx;
+  transition: all 0.2s ease;
+}
+.mk-chip.on {
+  background: #F25B15;
+  border-color: #F25B15;
+  color: #fff;
+  font-weight: 500;
+}
+.mk-note { font-size: 22rpx; color: #A9B1BD; }
+
+.mk-body { padding: 0 24rpx 40rpx; }
+.mk-meta { font-size: 22rpx; color: #A9B1BD; margin-top: 8rpx; }
+
+/* 无封面占位(换链失败等):灰底居中图标 */
+.mk-nocover { display: flex; align-items: center; justify-content: center; }
+.mk-nocover-ic { width: 88rpx; height: 88rpx; opacity: 0.5; }

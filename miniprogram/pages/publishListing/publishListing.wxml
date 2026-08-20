@@ -1,0 +1,93 @@
+<view class="page">
+  <view class="container">
+    <!-- 类型 -->
+    <view class="card">
+      <view class="card-title">卖什么空调</view>
+      <view class="pl-tiles">
+        <view class="pl-tile {{form.condition === item.key ? 'on' : ''}}"
+              wx:for="{{conditions}}" wx:key="key"
+              bindtap="pickOpt" data-field="condition" data-key="{{item.key}}">
+          <view class="pl-tile-name">{{item.name}}</view>
+          <view class="pl-tile-sub">{{item.key === 'new' ? '全新未拆封/库存机' : '回收翻新/自用转让'}}</view>
+          <view class="pl-check" wx:if="{{form.condition === item.key}}"><view class="ic ic-check-w ic-xs"></view></view>
+        </view>
+      </view>
+
+      <!-- 二手专属 -->
+      <block wx:if="{{form.condition === 'used'}}">
+        <view class="pl-label">成色</view>
+        <view class="pl-chips">
+          <view class="pl-chip {{form.usedGrade === item.key ? 'on' : ''}}"
+                wx:for="{{usedGrades}}" wx:key="key"
+                bindtap="pickOpt" data-field="usedGrade" data-key="{{item.key}}">{{item.name}}</view>
+        </view>
+        <view class="pl-label">使用年限</view>
+        <view class="pl-chips">
+          <view class="pl-chip {{form.usedYears === item.key ? 'on' : ''}}"
+                wx:for="{{usedYearsList}}" wx:key="key"
+                bindtap="pickOpt" data-field="usedYears" data-key="{{item.key}}">{{item.name}}</view>
+        </view>
+      </block>
+
+      <view class="pl-label">机型</view>
+      <view class="pl-chips">
+        <view class="pl-chip {{form.unitType === item.key ? 'on' : ''}}"
+              wx:for="{{unitTypes}}" wx:key="key"
+              bindtap="pickOpt" data-field="unitType" data-key="{{item.key}}">{{item.name}}</view>
+      </view>
+
+      <view class="pl-label">匹数</view>
+      <view class="pl-chips">
+        <view class="pl-chip {{form.hp === item.key ? 'on' : ''}}"
+              wx:for="{{hpOptions}}" wx:key="key"
+              bindtap="pickOpt" data-field="hp" data-key="{{item.key}}">{{item.name}}</view>
+      </view>
+    </view>
+
+    <!-- 商品信息 -->
+    <view class="card">
+      <view class="card-title">商品信息</view>
+      <view class="pl-label">品牌</view>
+      <view class="pl-chips">
+        <view class="pl-chip {{form.brand === item ? 'on' : ''}}"
+              wx:for="{{brands}}" wx:key="*this"
+              bindtap="pickBrand" data-b="{{item}}">{{item}}</view>
+      </view>
+      <input class="form-input" placeholder="或手动输入品牌" maxlength="12"
+             bindinput="onInput" data-field="brand" value="{{form.brand}}" />
+
+      <view class="pl-label">标题</view>
+      <input class="form-input" placeholder="如:格力1.5匹变频挂机 九成新" maxlength="30"
+             bindinput="onInput" data-field="title" value="{{form.title}}" />
+
+      <view class="pl-label">商品描述</view>
+      <textarea class="form-textarea" placeholder="机器状况、购买时间、是否含安装等(至少10个字)。请勿留联系方式,买家会通过平台联系你"
+                maxlength="500" bindinput="onInput" data-field="desc" value="{{form.desc}}"></textarea>
+
+      <view class="pl-label">价格(元)</view>
+      <input class="form-input" type="number" placeholder="整数,如 1200" maxlength="5"
+             bindinput="onInput" data-field="price" value="{{form.price}}" />
+    </view>
+
+    <!-- 照片 -->
+    <view class="card">
+      <view class="card-title">商品照片<text class="text-sub"> 第一张将作为封面,最多6张</text></view>
+      <view class="pl-photo-tip">白天光线充足时拍:正面整机照当封面,再拍铭牌/能效标识和细节瑕疵——照片越清楚,买家越敢联系你</view>
+      <view class="photo-grid">
+        <image wx:for="{{photos}}" wx:key="*this" src="{{item}}" mode="aspectFill"
+               bindtap="previewPhoto" bindlongpress="removePhoto" data-src="{{item}}" data-idx="{{index}}" />
+        <view class="photo-add" bindtap="addPhoto" wx:if="{{photos.length < 6}}">
+          <view class="ic ic-plus-g photo-add-ic"></view>
+          <view class="photo-add-lb">{{photos.length ? '继续添加' : '添加照片'}}</view>
+        </view>
+      </view>
+      <view class="text-sub mt8" wx:if="{{photos.length}}">长按照片可移除</view>
+    </view>
+    <view class="spacer40"></view>
+  </view>
+
+  <view class="sticky-bar">
+    <button class="btn-cta" hover-class="hv-press" bindtap="submit" disabled="{{submitting}}">{{submitting ? '发布中…' : '发布商品'}}</button>
+    <view class="sticky-note">线下当面交易,平台不代收货款</view>
+  </view>
+</view>

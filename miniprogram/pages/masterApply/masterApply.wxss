@@ -1,0 +1,60 @@
+.cat-row { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.cat-chip {
+  padding: 14rpx 28rpx;
+  background: #F6F7F9;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  border: 2rpx solid transparent;
+}
+.chip-active {
+  background: #FDEBE0;
+  color: #C9490C;
+  border-color: #F25B15;
+  font-weight: 600;
+}
+
+.loc-btn {
+  color: #C9490C;
+  font-size: 26rpx;
+  padding: 0 20rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.agree-row { display: flex; align-items: center; margin: 8rpx 0 24rpx; }
+.checkbox {
+  width: 36rpx; height: 36rpx;
+  border: 2rpx solid #A9B1BD;
+  border-radius: 8rpx;
+  margin-right: 12rpx;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.checkbox-on { background: #F25B15; border-color: #F25B15; }
+.link { color: #C9490C; }
+
+/* 资质材料槽位:身份证用 3:2 横版框示意拍摄方向;证书/执照沿用九宫格方块 */
+.qual-row { display: flex; gap: 24rpx; margin-top: 12rpx; }
+.qual-col { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
+.qual-slot {
+  position: relative;
+  width: 264rpx; height: 176rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: #F6F7F9;
+  border: 2rpx dashed #ECEEF2;
+  box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+}
+.qual-slot image { width: 100%; height: 100%; }
+.qual-sq { position: relative; width: 196rpx; height: 196rpx; border-radius: 16rpx; overflow: hidden; }
+.qual-sq image { width: 100%; height: 100%; }
+.qual-del {
+  position: absolute; top: 0; right: 0;
+  width: 48rpx; height: 48rpx;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  border-bottom-left-radius: 16rpx;
+}

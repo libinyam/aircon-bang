@@ -1,0 +1,127 @@
+<view class="page">
+  <!-- 身份确认中:先不下"未入驻"结论 -->
+  <view class="loading-wrap" wx:if="{{state === 'loading'}}"><view class="spinner"></view><view>加载中…</view></view>
+
+  <!-- 未入驻:师傅招募 -->
+  <view class="container" wx:elif="{{state === 'guest'}}">
+    <view class="join-hero">
+      <view class="join-title">成为平台空调师傅</view>
+      <view class="join-sub">同城订单直达 · 接单自由 · 多劳多得</view>
+    </view>
+    <view class="card">
+      <view class="jp"><view class="ic ic-shield-f"></view><view class="flex-1"><view class="jp-t">维修费当面结算</view><view class="text-sub">客户直接付给你,平台不抽单佣金</view></view></view>
+      <view class="jp"><view class="ic ic-star-gold"></view><view class="flex-1"><view class="jp-t">会员制接单</view><view class="text-sub">费用透明,接多接少都不再多收</view></view></view>
+      <view class="jp"><view class="ic ic-join-sq"></view><view class="flex-1"><view class="jp-t">实名审核上岗</view><view class="text-sub">认证标识让客户更信任你</view></view></view>
+      <button class="btn-cta mt16" hover-class="hv-press" bindtap="goApply">立即申请入驻</button>
+    </view>
+  </view>
+
+  <!-- 登录失败:不下业务结论,只给重试 -->
+  <view class="container" wx:elif="{{state === 'loginError'}}">
+    <view class="card center-card">
+      <view class="ic il-net-error ic-big"></view>
+      <view class="state-title mt8">登录失败</view>
+      <view class="text-sub mt8">网络异常,暂时无法确认你的身份</view>
+      <button class="btn-cta mt24" hover-class="hv-press" bindtap="refresh">重试</button>
+    </view>
+  </view>
+
+  <!-- 审核中 -->
+  <view class="container" wx:elif="{{state === 'pending'}}">
+    <view class="card center-card">
+      <view class="state-circle"><view class="ic ic-clock big-ic"></view></view>
+      <view class="state-title">入驻申请审核中</view>
+      <view class="text-sub mt8">平台会尽快审核,通过后即可接单</view>
+    </view>
+  </view>
+
+  <!-- 被驳回 -->
+  <view class="container" wx:elif="{{state === 'rejected'}}">
+    <view class="card center-card">
+      <view class="state-circle circle-red"><view class="ic ic-alert-r big-ic"></view></view>
+      <view class="state-title">入驻申请未通过</view>
+      <view class="text-sub mt8">{{master.rejectReason || '资料不符合要求'}}</view>
+      <button class="btn-cta mt24" hover-class="hv-press" bindtap="goApply">修改资料重新申请</button>
+    </view>
+  </view>
+
+  <!-- 已通过:订单池 -->
+  <block wx:elif="{{state === 'approved'}}">
+    <!-- 暖色渐变头部:会员条 + 筛选 -->
+    <view class="hall-head">
+      <view class="gold-bar" wx:if="{{memberValid}}">
+        <view class="ic ic-star-gold ic-sm"></view>
+        <text class="gold-text flex-1">接单会员 · 有效期至 {{memberExpireText}}</text>
+        <view class="gold-btn" bindtap="callService">续费</view>
+      </view>
+      <view class="gold-bar gold-bar--warn" wx:else>
+        <text class="gold-title gold-title--warn flex-1">会员未开通或已到期,开通后即可抢单</text>
+        <view class="gold-btn gold-btn--brand" bindtap="callService">联系开通</view>
+      </view>
+
+      <view class="filter-row">
+        <view class="cat-tabs">
+          <view class="cat-tab {{activeCat === item.key ? 'on' : ''}}"
+                wx:for="{{catTabs}}" wx:key="key"
+                bindtap="switchCat" data-key="{{item.key}}">
+            <text>{{item.name}}</text>
+            <view class="cat-tab-line" wx:if="{{activeCat === item.key}}"></view>
+          </view>
+        </view>
+        <view class="sort-toggle" bindtap="toggleSort">{{sortBy === 'distance' ? '距离优先' : '最新优先'}}<view class="ic ic-caret-d ic-xs"></view></view>
+      </view>
+    </view>
+
+    <view class="hall-body">
+      <button class="btn-ghost subs-btn" wx:if="{{showSubscribe}}" bindtap="subscribeNewOrder">
+        <view class="ic ic-bell-o ic-sm"></view> 开启新订单提醒
+      </button>
+
+      <!-- 骨架屏:订单池卡占位 -->
+      <view wx:if="{{!loaded}}">
+        <view class="card" wx:for="{{[1,2,3]}}" wx:key="*this">
+          <view class="sk sk-line" style="width:38%"></view>
+          <view class="sk sk-line mt16" style="width:88%"></view>
+          <view class="sk sk-line mt16" style="width:70%"></view>
+          <view class="row-between mt16">
+            <view class="sk sk-line" style="width:44%"></view>
+            <view class="sk sk-btn"></view>
+          </view>
+        </view>
+      </view>
+
+      <view class="empty" wx:if="{{loaded && loadError && !showOrders.length}}">
+        <view class="ic il-net-error ic-big"></view>
+        <view>加载失败,请检查网络</view>
+        <button class="btn-ghost mt16 retry-btn" bindtap="retryLoad">重试</button>
+      </view>
+      <view class="empty" wx:elif="{{loaded && !showOrders.length}}">
+        <view class="ic il-empty-order ic-big"></view>
+        <view>{{serviceCity}}暂时没有待接订单</view>
+        <view class="text-sub mt8">{{showSubscribe ? '点上方「开启新订单提醒」,来单第一时间告诉你' : '下拉刷新看看'}}</view>
+      </view>
+
+      <view class="card o-card" hover-class="hv-press" wx:for="{{showOrders}}" wx:key="_id" bindtap="goDetail" data-id="{{item._id}}">
+        <view class="row row-top">
+          <view class="flex-1">
+            <view class="row gap12">
+              <text class="o-title">{{item.categoryName}}</text>
+              <view class="o-badge" wx:if="{{item.urgentText}}">{{item.urgentText}}</view>
+            </view>
+            <view class="o-desc">{{item.desc}}</view>
+          </view>
+          <view class="o-dist" wx:if="{{item.distanceNum}}">
+            <view class="o-dist-num {{item.near ? 'near' : ''}}">{{item.distanceNum}}<text class="o-dist-unit"> km</text></view>
+            <view class="o-dist-lb">距你</view>
+          </view>
+        </view>
+        <view class="o-foot">
+          <text class="o-meta"><text class="o-meta-addr">{{item.address}}</text> · {{item.pubText}}</text>
+          <button class="btn-cta btn-cta-sm" hover-class="hv-press" hover-stop-propagation="{{true}}" catchtap="grab" data-id="{{item._id}}"
+                  disabled="{{!memberValid || acting}}">抢单</button>
+        </view>
+      </view>
+      <view class="text-sub list-end" wx:if="{{showOrders.length && noMore}}">没有更多了</view>
+    </view>
+  </block>
+</view>

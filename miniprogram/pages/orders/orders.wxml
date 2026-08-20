@@ -1,0 +1,47 @@
+<view class="container">
+  <!-- 骨架屏:订单卡占位 -->
+  <view wx:if="{{!loaded}}">
+    <view class="card" wx:for="{{[1,2,3]}}" wx:key="*this">
+      <view class="row-between">
+        <view class="sk sk-line" style="width:34%"></view>
+        <view class="sk sk-tag"></view>
+      </view>
+      <view class="sk sk-line mt16" style="width:56%"></view>
+      <view class="sk sk-line mt16" style="width:92%"></view>
+      <view class="row-between mt16">
+        <view class="sk sk-line" style="width:30%"></view>
+        <view class="sk sk-line" style="width:24%"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{loaded && loadError && !orders.length}}">
+    <view class="ic il-net-error ic-big"></view>
+    <view>加载失败,请检查网络</view>
+    <button class="btn-ghost mt16 retry-btn" bindtap="retryLoad">重试</button>
+  </view>
+  <view class="empty" wx:elif="{{loaded && !orders.length}}">
+    <view class="ic il-empty-order ic-big"></view>
+    <text>{{mode === 'master' ? '还没有接过订单' : '还没有发布过需求'}}</text>
+  </view>
+
+  <view class="card order-item" hover-class="hv-press" wx:for="{{orders}}" wx:key="_id"
+        bindtap="goDetail" data-id="{{item._id}}">
+    <view class="row-between">
+      <view class="oi-title">{{item.categoryName}}</view>
+      <view class="row gap12">
+        <!-- 师傅端被驳回标记:accepted+驳回过 = 用户在等你继续处理 -->
+        <view class="tag tag-danger" wx:if="{{mode === 'master' && item.status === 'accepted' && item.rejectCount > 0}}">被驳回,需处理</view>
+        <view class="tag" style="background:{{statusMap[item.status].color}}">{{statusMap[item.status].label}}</view>
+      </view>
+    </view>
+    <view class="text-sub mt8">单号 {{item.orderNo}}</view>
+    <view class="mt8 desc-line">{{item.desc}}</view>
+    <view class="row-between mt8">
+      <view class="text-sub">{{item.expectTime}}</view>
+      <view class="text-sub">{{item.publishedAtText}}</view>
+    </view>
+  </view>
+
+  <view class="text-sub list-end-sm" wx:if="{{orders.length && noMore}}">没有更多了</view>
+</view>

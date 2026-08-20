@@ -1,0 +1,78 @@
+<view class="page">
+  <!-- 品牌 hero:heroImage 为换链后的临时链接(换链失败/留空自动回退品牌渐变);
+       文案只描述真实服务范围,不承诺兑现不了的事 -->
+  <view class="hero {{heroImage ? 'hero--photo' : 'hero--plain'}}">
+    <image class="hero-bg" src="{{heroImage}}" mode="aspectFill" wx:if="{{heroImage}}" binderror="onHeroImgError" />
+    <view class="hero-scrim" wx:if="{{heroImage}}"></view>
+    <view class="hero-inner" style="padding-top:{{statusBarHeight}}px">
+      <!-- 角色入口：认证师傅进入接单大厅，其他用户进入入驻申请；认证结果由云函数返回 -->
+      <view class="role-tabs">
+        <view class="role-tab on">
+          <text>找师傅</text>
+          <view class="role-line"></view>
+        </view>
+        <view class="role-tab" bindtap="goMaster">{{masterEntryText}}</view>
+      </view>
+
+      <view class="hero-hi">{{greeting}} · 需要师傅上门吗?</view>
+      <view class="hero-brand"><text>空调帮</text><view class="hero-mark"></view></view>
+      <view class="hero-slogan">发单免费 · 师傅上门 · 费用当面结</view>
+
+      <!-- 搜索样式发单入口 -->
+      <view class="search-card" hover-class="hv-press" bindtap="goPublish" data-category="">
+        <view class="search-box">
+          <view class="ic ic-search-o ic-sm"></view>
+          <text class="search-ph">说说空调的问题</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="body">
+    <!-- 品类:面性彩色图标直接放底上 -->
+    <view class="cat-grid">
+      <view class="cat-cell" wx:for="{{categories}}" wx:key="key"
+            bindtap="goPublish" data-category="{{item.key}}">
+        <view class="ic ic-cat-{{item.key}} cat-ic"></view>
+        <view class="cat-name">{{item.name}}</view>
+      </view>
+    </view>
+
+    <!-- 进行中的订单(细条样式):老用户的第一眼是个性化信息,排在营销位前 -->
+    <view class="sec-label" wx:if="{{activeOrders.length}}">进行中的单子</view>
+    <view class="order-strip" hover-class="hv-press" wx:for="{{activeOrders}}" wx:key="_id"
+          bindtap="goDetail" data-id="{{item._id}}">
+      <view class="strip-dot" style="background:{{statusMap[item.status].color}};box-shadow:0 0 0 7rpx {{statusMap[item.status].color}}22"></view>
+      <text class="strip-title">{{item.categoryName}} · {{statusMap[item.status].label}}</text>
+      <text class="strip-time flex-1">{{item.expectTime}}</text>
+      <view class="ic ic-chev ic-sm"></view>
+    </view>
+
+    <!-- 主CTA横幅(诚实版:只承诺能兑现的) -->
+    <view class="promo" hover-class="hv-press" bindtap="goPublish" data-category="">
+      <view class="flex-1">
+        <view class="promo-t">发单免费 · 当面结算</view>
+        <view class="promo-s">同城实名认证师傅接单,不成单不花钱</view>
+      </view>
+      <view class="promo-go">发单</view>
+    </view>
+
+    <!-- 买空调 / 师傅接单:双列入口卡(打破横条堆叠的单调节奏) -->
+    <view class="dual-row">
+      <view class="dual-card" hover-class="hv-press" bindtap="goMarket">
+        <view class="dual-ic"><view class="ic ic-shop-c"></view></view>
+        <view class="dual-t">买空调</view>
+        <view class="dual-s">师傅直卖 · 当面验货</view>
+        <view class="dual-go">去逛逛<view class="ic ic-chev-o ic-xs"></view></view>
+      </view>
+      <view class="dual-card dual-card--green" hover-class="hv-press" bindtap="goMaster">
+        <view class="dual-ic dual-ic--green"><view class="ic ic-join-sq"></view></view>
+        <view class="dual-t">{{isApprovedMaster ? '接单大厅' : '我是师傅'}}</view>
+        <view class="dual-s">{{isApprovedMaster ? '待接订单与今日安排' : '不抽成 · 费用直收'}}</view>
+        <view class="dual-go">{{masterJoinText}}<view class="ic ic-chev-o ic-xs"></view></view>
+      </view>
+    </view>
+
+    <view class="footer-tip">师傅和费用都当面确认 · 平台只做信息撮合</view>
+  </view>
+</view>

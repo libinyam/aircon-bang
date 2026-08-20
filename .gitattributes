@@ -1,0 +1,11 @@
+# 钉死文本文件 LF 检出口径(覆盖 Windows 的 core.autocrlf):
+# 否则 git 切分支/新克隆会把文本文件转成 CRLF,而 sync-shared.js 写的 _shared 副本
+# 与母本是 LF,一致性守护(test/textSafe.test.js 等按字节比对)会在本地随机炸
+* text=auto eol=lf
+
+# 图片等二进制明确标记,不参与行尾转换
+*.webp binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary

@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "hourly-timeout",
+      "type": "timer",
+      "config": "0 0 * * * * *"
+    }
+  ]
+}

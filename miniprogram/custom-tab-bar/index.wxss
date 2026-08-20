@@ -1,0 +1,24 @@
+@import "../app.wxss";
+
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 108rpx;
+  background: #fff;
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -6rpx 24rpx rgba(23, 28, 36, 0.05);
+}
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+}
+.tab-ic { width: 48rpx; height: 48rpx; }
+.tab-text { font-size: 24rpx; color: #667180; }
+.tab-text-on { color: #F25B15; font-weight: 500; }

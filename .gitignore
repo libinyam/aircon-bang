@@ -1,0 +1,17 @@
+# 依赖
+node_modules/
+cloudfunctions/**/node_modules/
+
+# 开发者工具本地配置(含个人路径,不入库)
+project.private.config.json
+.DS_Store
+
+# 本地 AI/工具工作区,不入库
+.claude/
+.freebuff/
+.gh-temp/
+.github-review-workspace/
+.github-review-memory/
+repo-context.json
+_preview/
+frontend-preview.html

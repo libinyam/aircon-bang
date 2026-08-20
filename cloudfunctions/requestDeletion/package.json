@@ -1,0 +1,9 @@
+{
+  "name": "requestDeletion",
+  "version": "1.0.0",
+  "description": "申请删除账号数据(幂等)",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "2.6.3"
+  }
+}

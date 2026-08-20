@@ -1,0 +1,178 @@
+<view class="container">
+  <!-- 运营体检:定时器健康 + 积压提醒 -->
+  <view class="card health-card" wx:if="{{health}}">
+    <view class="row health-row">
+      <text class="text-strong {{health.cron.stale ? 'text-danger' : 'text-ok'}}">
+        {{health.cron.stale ? '定时器异常' : '定时器正常'}}{{health.cron.ageHours !== null ? '(' + health.cron.ageHours + '小时前跑过)' : '(从未运行,检查触发器)'}}
+      </text>
+      <text wx:if="{{health.cron.error}}" class="text-danger">上次报错:{{health.cron.error}}</text>
+      <text wx:if="{{health.mediaStuck}}" class="text-warn">图片送检卡住 {{health.mediaStuck}} 条(查消息推送配置)</text>
+      <text wx:if="{{health.pendingMasters}}">待审核 {{health.pendingMasters}}</text>
+      <text wx:if="{{health.openComplaints}}">未结投诉 {{health.openComplaints}}</text>
+      <text wx:if="{{health.openDeletions}}">删除申请 {{health.openDeletions}}</text>
+      <text wx:if="{{health.deletionsOverdue}}" class="text-danger">删除申请超期 {{health.deletionsOverdue}}(承诺15个工作日内办结)</text>
+    </view>
+  </view>
+
+  <!-- 顶部 tab -->
+  <view class="seg">
+    <view class="seg-item {{tab === item.key ? 'seg-active' : ''}}"
+          wx:for="{{tabs}}" wx:key="key" bindtap="switchTab" data-key="{{item.key}}">
+      {{item.label}}
+    </view>
+  </view>
+
+  <view class="card err-card" wx:if="{{loadError}}" bindtap="load">加载失败,点此重试</view>
+
+  <!-- 待审核 / 全部师傅 -->
+  <block wx:if="{{tab === 'pending' || tab === 'masters'}}">
+    <view class="empty" wx:if="{{loaded && !masters.length}}">
+      <view class="ic il-empty-order ic-big"></view><text>{{tab === 'pending' ? '没有待审核的申请' : '暂无师傅'}}</text>
+    </view>
+    <view class="card" wx:for="{{masters}}" wx:key="_id">
+      <view class="row-between">
+        <view class="text-strong">{{item.realName}} <text class="text-sub">{{item.phone}}</text></view>
+        <view class="tag" style="background:{{masterStatusMap[item.status].color}}">{{masterStatusMap[item.status].label}}</view>
+      </view>
+      <view class="text-sub mt8">{{item.serviceCity}} · {{item.categoryNames}}</view>
+      <view class="text-sub mt8" wx:if="{{item.companyName}}">门店/企业:{{item.companyName}}</view>
+      <view class="text-sub mt8 text-danger" wx:if="{{item.qualRisk}}">资质照片被内容安全检测标记,请仔细核验</view>
+      <view class="mt8" wx:if="{{item.intro}}">{{item.intro}}</view>
+      <view class="photo-grid" wx:if="{{item.qualLabeled}}">
+        <view class="qual-item" wx:for="{{item.qualLabeled}}" wx:for-item="qual" wx:key="url">
+          <image src="{{qual.url}}" mode="aspectFill" bindtap="previewQual"
+                 data-src="{{qual.url}}" data-list="{{item.qualPhotos}}"/>
+          <view class="qual-item-label">{{qual.label}}</view>
+        </view>
+      </view>
+      <view class="photo-grid" wx:elif="{{item.qualPhotos.length}}">
+        <image wx:for="{{item.qualPhotos}}" wx:for-item="photo" wx:key="*this" src="{{photo}}"
+               mode="aspectFill" bindtap="previewQual" data-src="{{photo}}" data-list="{{item.qualPhotos}}"/>
+      </view>
+      <view class="text-sub mt8" wx:if="{{item.status === 'approved'}}">
+        会员:{{item.memberText || '未开通'}} · 完成 {{item.stats.done}} 单<text wx:if="{{item.stats.cancelled}}" class="text-danger"> · 接单后取消 {{item.stats.cancelled}} 次</text>
+      </view>
+
+      <view class="action-row mt16" wx:if="{{item.status === 'pending'}}">
+        <button class="btn-danger-ghost flex-1" bindtap="audit" data-id="{{item._id}}" data-pass="{{false}}">驳回</button>
+        <button class="btn-primary flex-1" bindtap="audit" data-id="{{item._id}}" data-pass="{{true}}">通过</button>
+      </view>
+      <!-- 资格联动失败警示(持久化在 master 文档上,页面刷新后仍在,直到补偿成功) -->
+      <view class="text-sub mt8 text-danger" wx:if="{{item.listingSyncPending}}">
+        商品批量下架未完成{{item.listingSyncPendingCount > 0 ? '(待处理 ' + item.listingSyncPendingCount + ' 件)' : ''}},请重试
+      </view>
+      <view class="action-row mt16" wx:if="{{item.status === 'approved'}}">
+        <button class="btn-ghost flex-1" bindtap="openGrant" data-id="{{item._id}}" data-name="{{item.realName}}">开通/续费会员</button>
+        <button class="btn-danger-ghost flex-1" bindtap="revokeMaster" data-id="{{item._id}}" data-name="{{item.realName}}">撤销资格</button>
+      </view>
+      <view class="action-row mt16" wx:if="{{item.listingSyncPending}}">
+        <button class="btn-danger-ghost flex-1" bindtap="retryListingSync" data-id="{{item._id}}">重试下架商品</button>
+      </view>
+    </view>
+  </block>
+
+  <!-- 订单 -->
+  <block wx:if="{{tab === 'orders'}}">
+    <view class="empty" wx:if="{{loaded && !orders.length}}"><view class="ic il-empty-order ic-big"></view><text>暂无订单</text></view>
+    <view class="card" wx:for="{{orders}}" wx:key="_id">
+      <view class="row-between">
+        <view class="text-strong">{{item.categoryName}} · {{item.orderNo}}</view>
+        <view class="tag" style="background:{{statusMap[item.status].color}}">{{statusMap[item.status].label}}</view>
+      </view>
+      <view class="text-sub mt8">{{item.cityName}} · {{item.publishedAtText}}</view>
+      <view class="text-sub mt8">用户 {{item.userPhone}}<text wx:if="{{item.masterName}}"> · 师傅 {{item.masterName}} {{item.masterPhone}}</text></view>
+      <view class="text-sub mt8 text-danger" wx:if="{{item.rejectCount}}">被用户驳回 {{item.rejectCount}} 次{{item.lastRejectReason ? ':' + item.lastRejectReason : ''}}</view>
+      <view class="text-sub mt8 text-danger" wx:if="{{item.photosRisk}}">有照片被内容安全检测判定违规,已自动摘除</view>
+      <view class="mt8 desc-line">{{item.desc}}</view>
+    </view>
+    <button class="btn-ghost" wx:if="{{orders.length >= 20}}" bindtap="moreOrders">加载更多</button>
+  </block>
+
+  <!-- 商品(买空调频道) -->
+  <block wx:if="{{tab === 'listings'}}">
+    <view class="empty" wx:if="{{loaded && !listings.length}}"><view class="ic il-empty-goods ic-big"></view><text>暂无商品</text></view>
+    <view class="card" wx:for="{{listings}}" wx:key="_id">
+      <view class="row row-top gap16">
+        <image class="al-thumb" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}"
+               bindtap="previewQual" data-src="{{item.cover}}" data-list="{{[item.cover]}}" />
+        <view class="flex-1">
+          <view class="row-between">
+            <view class="text-strong">{{item.title}}</view>
+            <view class="tag" style="background:{{item.statusColor}}">{{item.statusLabel}}</view>
+          </view>
+          <view class="text-sub mt8">{{item.listingNo}} · ¥{{item.priceYuan}} · {{item.cityName}}</view>
+          <view class="text-sub mt8">{{item.sellerDisplayName}} · {{item.createdAtText}}</view>
+        </view>
+      </view>
+      <view class="text-sub mt8 text-danger" wx:if="{{item.photosRisk}}">有照片被内容安全检测判定违规,已自动摘除</view>
+      <view class="text-sub mt8 text-danger" wx:if="{{item.removedReason}}">下架原因:{{item.removedReason}}</view>
+      <view class="mt8 desc-line">{{item.desc}}</view>
+      <button class="btn-danger-ghost mt16" wx:if="{{item.canTakedown}}"
+              bindtap="takedownListing" data-id="{{item._id}}">强制下架</button>
+    </view>
+    <button class="btn-ghost" wx:if="{{listingHasMore}}" bindtap="moreListings">加载更多</button>
+  </block>
+
+  <!-- 投诉/商品举报(按 targetType 分渲染,titleText 在 js 预计算) -->
+  <block wx:if="{{tab === 'complaints'}}">
+    <view class="empty" wx:if="{{loaded && !complaints.length}}"><view class="ic il-empty-order ic-big"></view><text>暂无投诉</text></view>
+    <view class="card" wx:for="{{complaints}}" wx:key="_id">
+      <view class="row-between">
+        <view class="text-strong">{{item.titleText}}</view>
+        <view class="tag {{item.status === 'open' ? 'tag-danger' : 'tag-muted'}}">
+          {{item.status === 'open' ? '待处理' : '已处理'}}
+        </view>
+      </view>
+      <view class="text-sub mt8" wx:if="{{item.subText}}">{{item.subText}}</view>
+      <view class="mt8">{{item.content}}</view>
+      <view class="text-sub mt8" wx:if="{{item.handleNote}}">处理记录:{{item.handleNote}}</view>
+      <button class="btn-primary mt16" wx:if="{{item.status === 'open'}}"
+              bindtap="handleComplaint" data-id="{{item._id}}">标记已处理</button>
+    </view>
+  </block>
+
+  <!-- 删除申请:先执行数据删除,执行成功才能填备注关闭 -->
+  <block wx:if="{{tab === 'deletions'}}">
+    <view class="empty" wx:if="{{loaded && !deletions.length}}"><view class="ic il-empty-order ic-big"></view><text>暂无删除申请</text></view>
+    <view class="card" wx:for="{{deletions}}" wx:key="_id">
+      <view class="row-between">
+        <view class="text-strong">{{item.isMaster ? '师傅' : '用户'}}账号 …{{item.openidTail}}</view>
+        <view class="tag {{item.status === 'closed' ? 'tag-muted' : 'tag-danger'}}">{{item.statusText}}</view>
+      </view>
+      <view class="text-sub mt8">申请于 {{item.createdAtText}}</view>
+      <view class="text-sub mt8" wx:if="{{item.lastBlockers.length && item.status === 'open'}}">阻断项:{{item.blockersText}}</view>
+      <view class="text-sub mt8" wx:if="{{item.status === 'pending_retry'}}">{{item.failedFiles.length}}个文件删除失败,可重试</view>
+      <view class="text-sub mt8" wx:if="{{item.execution}}">已删文件{{item.execution.filesDeleted}}个,匿名化订单{{item.execution.ordersAnonymized + item.execution.masterOrdersAnonymized}}单</view>
+      <view class="text-sub mt8" wx:if="{{item.handleNote}}">处理记录:{{item.handleNote}}</view>
+      <button class="btn-primary mt16" wx:if="{{item.status === 'open' || item.status === 'pending_retry'}}"
+              bindtap="executeDeletion" data-id="{{item._id}}">{{item.status === 'pending_retry' ? '重试执行' : '执行数据删除'}}</button>
+      <button class="btn-primary mt16" wx:if="{{item.status === 'executed'}}"
+              bindtap="handleDeletion" data-id="{{item._id}}">填写记录并关闭</button>
+    </view>
+  </block>
+
+  <!-- 开通会员弹层 -->
+  <view class="mask" wx:if="{{grant.show}}" bindtap="closeGrant">
+    <view class="grant-panel" catchtap="noop">
+      <view class="card-title">为 {{grant.name}} 开通会员</view>
+      <view class="form-label mt16">开通月数</view>
+      <view class="row gap16">
+        <view class="month-chip {{grant.months === m ? 'chip-active' : ''}}"
+              wx:for="{{[1,3,6,12]}}" wx:for-item="m" wx:key="*this"
+              bindtap="setMonths" data-m="{{m}}">{{m}}个月</view>
+      </view>
+      <view class="form-label mt16">实收金额(元)</view>
+      <input class="form-input" type="digit" placeholder="线下实际收款金额" value="{{grant.amount}}" bindinput="onGrantAmount"/>
+      <view class="form-label mt16">备注</view>
+      <input class="form-input" placeholder="例:微信转账收款,老张介绍" value="{{grant.note}}" bindinput="onGrantNote"/>
+      <view class="action-row mt24">
+        <button class="btn-ghost flex-1" bindtap="closeGrant">取消</button>
+        <button class="btn-primary flex-1" bindtap="doGrant" disabled="{{acting}}">确认开通</button>
+      </view>
+    </view>
+  </view>
+
+  <button class="btn-ghost mt16" bindtap="initDb">初始化数据库集合(首次部署用)</button>
+  <button class="btn-ghost mt16" bindtap="smokePool">订单池自检(部署/建索引后用)</button>
+  <view class="spacer40"></view>
+</view>

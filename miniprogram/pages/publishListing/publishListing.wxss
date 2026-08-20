@@ -1,0 +1,56 @@
+.page { padding-bottom: 220rpx; }
+
+/* 新机/二手 双磁贴 */
+.pl-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.pl-tile {
+  position: relative;
+  background: #F6F7F9;
+  border: 2rpx solid #F6F7F9;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  transition: all 0.2s ease;
+}
+.pl-tile.on { background: #FDEBE0; border-color: #F25B15; }
+.pl-tile-name { font-size: 30rpx; font-weight: 600; color: #171C24; }
+.pl-tile.on .pl-tile-name { color: #C9490C; }
+.pl-tile-sub { font-size: 22rpx; color: #A9B1BD; margin-top: 4rpx; }
+.pl-check {
+  position: absolute;
+  top: 0; right: 0;
+  width: 44rpx; height: 44rpx;
+  background: #F25B15;
+  border-radius: 0 14rpx 0 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 参数 chips */
+.pl-label { font-size: 26rpx; font-weight: 600; color: #454F5E; margin: 24rpx 0 12rpx; }
+.pl-chips { display: flex; flex-wrap: wrap; gap: 14rpx; margin-bottom: 8rpx; }
+.pl-chip {
+  font-size: 26rpx;
+  color: #454F5E;
+  background: #F6F7F9;
+  border: 2rpx solid #F6F7F9;
+  border-radius: 999rpx;
+  padding: 10rpx 28rpx;
+  transition: all 0.2s ease;
+}
+.pl-chip.on {
+  background: #FDEBE0;
+  border-color: #F25B15;
+  color: #C9490C;
+  font-weight: 500;
+}
+
+/* 拍摄指引提示条(照片质量抓源头:引导师傅拍好,而不是事后修图) */
+.pl-photo-tip {
+  font-size: 24rpx;
+  color: #667180;
+  background: #F6F7F9;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  margin-bottom: 20rpx;
+  line-height: 1.5;
+}

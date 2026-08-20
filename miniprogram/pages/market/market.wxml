@@ -1,0 +1,57 @@
+<view class="page">
+  <!-- 暖色头:筛选 chips(与首页导航底色无缝衔接) -->
+  <view class="mk-head">
+    <view class="row row-between">
+      <view class="mk-chips">
+        <view class="mk-chip {{condition === '' ? 'on' : ''}}" bindtap="switchCond" data-key="">全部</view>
+        <view class="mk-chip {{condition === 'new' ? 'on' : ''}}" bindtap="switchCond" data-key="new">新机</view>
+        <view class="mk-chip {{condition === 'used' ? 'on' : ''}}" bindtap="switchCond" data-key="used">二手机</view>
+      </view>
+      <view class="mk-note">师傅直卖 · 当面验货</view>
+    </view>
+  </view>
+
+  <view class="mk-body">
+    <!-- 骨架屏:双列商品卡占位 -->
+    <view class="goods-grid" wx:if="{{!loaded}}">
+      <view class="goods-card" wx:for="{{[1,2,3,4]}}" wx:key="*this">
+        <view class="sk sk-cover"></view>
+        <view class="goods-body">
+          <view class="sk sk-line" style="width:92%"></view>
+          <view class="sk sk-line mt8" style="width:58%"></view>
+          <view class="sk sk-price"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty" wx:if="{{loaded && loadError && !listings.length}}">
+      <view class="ic il-net-error ic-big"></view>
+      <view>加载失败,请检查网络</view>
+      <button class="btn-ghost mt16 retry-btn" bindtap="retryLoad">重试</button>
+    </view>
+    <view class="empty" wx:elif="{{loaded && !listings.length}}">
+      <view class="ic il-empty-goods ic-big"></view>
+      <view>暂时没有{{condition === 'new' ? '新机' : condition === 'used' ? '二手机' : ''}}在售</view>
+      <view class="text-sub mt8">下拉刷新看看</view>
+    </view>
+
+    <!-- 淘宝式双列商品网格 -->
+    <view class="goods-grid" wx:if="{{listings.length}}">
+      <view class="goods-card" hover-class="hv-press" wx:for="{{listings}}" wx:key="_id"
+            bindtap="goDetail" data-id="{{item._id}}">
+        <image class="goods-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+        <view class="goods-cover mk-nocover" wx:else><view class="ic ic-tab-shop mk-nocover-ic"></view></view>
+        <view class="goods-body">
+          <view class="goods-title">{{item.title}}</view>
+          <view class="row gap12 mt8">
+            <view class="cond-tag {{item.condClass}}">{{item.condText}}</view>
+            <view class="goods-tag">{{item.specText}}</view>
+          </view>
+          <view class="price mt8"><text class="price-sym">¥</text><text class="price-num">{{item.priceYuan}}</text></view>
+          <view class="mk-meta">{{item.metaText}}</view>
+        </view>
+      </view>
+    </view>
+    <view class="text-sub list-end-sm" wx:if="{{listings.length && noMore}}">没有更多了</view>
+  </view>
+</view>

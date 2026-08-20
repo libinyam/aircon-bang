@@ -1,0 +1,116 @@
+<view class="container">
+  <!-- 招募文案位:config.RECRUIT_NOTICE 可配置,冷启动免费期用 -->
+  <view class="gold-bar" wx:if="{{recruitNotice}}" style="margin-bottom:16rpx">
+    <view class="ic ic-star-gold ic-sm"></view>
+    <text class="gold-text flex-1">{{recruitNotice}}</text>
+  </view>
+  <view class="card">
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>真实姓名</view>
+      <input class="form-input" placeholder="用于客户识别与平台审核" maxlength="20"
+             value="{{form.realName}}" bindinput="onInput" data-field="realName"/>
+    </view>
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>手机号(客户联系你用)</view>
+      <input class="form-input" type="number" maxlength="11" placeholder="手机号"
+             value="{{form.phone}}" bindinput="onInput" data-field="phone"/>
+    </view>
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>服务城市</view>
+      <view class="row">
+        <input class="form-input flex-1" placeholder="例:长沙市" maxlength="20"
+               value="{{form.serviceCity}}" bindinput="onInput" data-field="serviceCity"/>
+        <view class="loc-btn" bindtap="autoCity"><view class="ic ic-pin-o ic-sm"></view>定位</view>
+      </view>
+      <view class="text-sub mt8">只会收到该城市的订单</view>
+    </view>
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>服务能力(可多选)</view>
+      <view class="cat-row">
+        <view class="cat-chip {{catOn[item.key] ? 'chip-active' : ''}}"
+              wx:for="{{categories}}" wx:key="key" bindtap="toggleCategory" data-key="{{item.key}}">
+          {{item.name}}
+        </view>
+      </view>
+    </view>
+    <view class="form-item">
+      <view class="form-label">从业简介(选填)</view>
+      <textarea class="form-textarea" placeholder="例:从业8年,原格力售后,擅长变频机维修"
+                maxlength="200" value="{{form.intro}}" bindinput="onInput" data-field="intro"/>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">资质证明材料</view>
+    <view class="text-sub mt8">身份证、证书与执照照片属敏感个人信息:仅用于平台入驻审核,仅审核人员可见,不会展示给客户;重新提交申请时旧照片自动删除,退出平台可致电客服申请删除。</view>
+
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>身份证原件照片(实名审核用)</view>
+      <view class="qual-row">
+        <view class="qual-col">
+          <view class="qual-slot" bindtap="pickSingle" data-slot="idFront">
+            <block wx:if="{{quals.idFront}}">
+              <image src="{{quals.idFront}}" mode="aspectFill"/>
+              <view class="qual-del" catchtap="removeSingle" data-slot="idFront"><view class="ic ic-close-w ic-xs"></view></view>
+            </block>
+            <view class="ic ic-plus-g photo-add-ic" wx:else></view>
+          </view>
+          <view class="text-sub">人像面</view>
+        </view>
+        <view class="qual-col">
+          <view class="qual-slot" bindtap="pickSingle" data-slot="idBack">
+            <block wx:if="{{quals.idBack}}">
+              <image src="{{quals.idBack}}" mode="aspectFill"/>
+              <view class="qual-del" catchtap="removeSingle" data-slot="idBack"><view class="ic ic-close-w ic-xs"></view></view>
+            </block>
+            <view class="ic ic-plus-g photo-add-ic" wx:else></view>
+          </view>
+          <view class="text-sub">国徽面</view>
+        </view>
+      </view>
+      <view class="text-sub mt8">拍摄清晰的身份证原件,四角完整、姓名与证件号可辨认,与上方填写的姓名一致</view>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">从业资质证书(选填,最多3张)</view>
+      <view class="text-sub">如制冷与空调设备作业操作证(特种作业)、高处作业证、家电维修职业技能证书等;提供后更容易通过审核</view>
+      <view class="photo-grid">
+        <view class="qual-sq" wx:for="{{quals.cert}}" wx:key="*this">
+          <image src="{{item}}" mode="aspectFill"/>
+          <view class="qual-del" catchtap="removeCert" data-index="{{index}}"><view class="ic ic-close-w ic-xs"></view></view>
+        </view>
+        <view class="photo-add" bindtap="addCert" wx:if="{{quals.cert.length < 3}}"><view class="ic ic-plus-g photo-add-ic"></view></view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">营业执照(选填)</view>
+      <view class="text-sub">个体户或公司经营者建议上传,并填写下方门店/企业名称</view>
+      <view class="photo-grid">
+        <view class="qual-sq" wx:if="{{quals.bizLicense}}">
+          <image src="{{quals.bizLicense}}" mode="aspectFill"/>
+          <view class="qual-del" catchtap="removeSingle" data-slot="bizLicense"><view class="ic ic-close-w ic-xs"></view></view>
+        </view>
+        <view class="photo-add" bindtap="pickSingle" data-slot="bizLicense" wx:else><view class="ic ic-plus-g photo-add-ic"></view></view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">门店/企业名称(选填)</view>
+      <input class="form-input" placeholder="例:XX家电维修服务部" maxlength="30"
+             value="{{form.companyName}}" bindinput="onInput" data-field="companyName"/>
+    </view>
+  </view>
+
+  <view class="agree-row" bindtap="toggleAgree">
+    <view class="checkbox {{agreed ? 'checkbox-on' : ''}}"><view class="ic ic-check-w ic-xs" wx:if="{{agreed}}"></view></view>
+    <view class="text-sub">我已阅读并同意 <text class="link" catchtap="viewAgreement">《师傅入驻协议》</text></view>
+  </view>
+
+  <button class="btn-cta" hover-class="hv-press" bindtap="submit" disabled="{{submitting}}">
+    {{submitting ? '提交中…' : '提交申请'}}
+  </button>
+  <view class="text-sub list-end-sm">
+    审核通过后,联系平台开通会员即可开始接单
+  </view>
+</view>

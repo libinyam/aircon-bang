@@ -1,0 +1,23 @@
+{
+  "root": true,
+  "env": { "es2021": true, "node": true },
+  "parserOptions": { "ecmaVersion": 2021, "sourceType": "script" },
+  "extends": "eslint:recommended",
+  "globals": {
+    "wx": "readonly",
+    "App": "readonly",
+    "Page": "readonly",
+    "Component": "readonly",
+    "Behavior": "readonly",
+    "getApp": "readonly",
+    "getCurrentPages": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": ["error", { "args": "none", "caughtErrors": "none" }],
+    "no-empty": ["error", { "allowEmptyCatch": true }]
+  },
+  "overrides": [
+    { "files": ["test/**/*.js"], "env": { "jest": true } }
+  ],
+  "ignorePatterns": ["node_modules/", "cloudfunctions/**/node_modules/"]
+}

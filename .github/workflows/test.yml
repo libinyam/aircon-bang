@@ -1,0 +1,21 @@
+name: test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # _shared 母本与各云函数目录副本必须一致(改母本忘跑 sync 脚本时在这里拦下)
+      - run: node scripts/sync-shared.js --check

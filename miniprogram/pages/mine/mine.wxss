@@ -1,0 +1,115 @@
+/* 顶部暖色渐变落在 page 上(与首页/接单大厅/买空调同源 #FAF0E7):
+   登录失败态无 mine-head 时导航栏下也能平滑过渡到灰底,不出现色差断层 */
+.page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 160rpx, #F6F7F9 340rpx);
+}
+
+.mine-head {
+  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 55%, #F6F7F9 100%);
+  padding: 20rpx 28rpx 104rpx;
+}
+.prof-row { display: flex; align-items: center; gap: 24rpx; padding-top: 8rpx; }
+.avatar {
+  width: 112rpx; height: 112rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FAE3D2, #F3C4A4);
+  color: #9C480E;
+  font-size: 46rpx;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+/* 展示头像:认证师傅可点击补传/更换,右下角角标提示 */
+.avatar-box { position: relative; flex-shrink: 0; }
+.avatar-edit {
+  position: absolute;
+  right: -8rpx; bottom: -4rpx;
+  font-size: 20rpx;
+  color: #fff;
+  background: #F25B15;
+  border: 2rpx solid #fff;
+  border-radius: 999rpx;
+  padding: 2rpx 12rpx;
+  line-height: 1.4;
+}
+.prof-name { font-size: 38rpx; font-weight: 600; line-height: 1.25; color: #171C24; }
+.prof-sub { font-size: 24rpx; color: #667180; margin-top: 8rpx; }
+.chip { font-size: 24rpx; font-weight: 600; border-radius: 999rpx; padding: 6rpx 18rpx; }
+.chip-blue { color: #3D6FD1; background: #E9EFFA; }
+.chip-green { color: #0E9868; background: #E3F2EC; }
+.chip-amber { color: #9A6503; background: #F7EDDA; }
+
+.stats-row { display: flex; padding: 32rpx 4rpx 28rpx; }
+.stat-num { font-size: 40rpx; font-weight: 800; line-height: 1.1; color: #171C24; font-feature-settings: "tnum"; }
+.stat-gold { color: #C9932B; }
+.stat-lb { font-size: 24rpx; color: #667180; margin-left: 10rpx; }
+
+.body { padding: 8rpx 24rpx 160rpx; }
+/* 首卡叠压进头部渐变尾段(Gitter 手法);登录失败态的 body 不带此类,不受影响 */
+.body-overlap { margin-top: -88rpx; padding-top: 0; }
+
+/* 身份入口：服务用户申请入驻，认证师傅直达接单大厅 */
+.role-state-card {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+  padding: 24rpx;
+  border: 1rpx solid #E6E9EE;
+}
+.role-state-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #5F789C;
+  box-shadow: 0 0 0 8rpx rgba(95, 120, 156, .12);
+}
+.role-state-dot--master {
+  background: #F25B15;
+  box-shadow: 0 0 0 8rpx rgba(242, 91, 21, .12);
+}
+.role-state-title { color: #171C24; font-size: 28rpx; font-weight: 600; }
+.role-state-sub { margin-top: 6rpx; color: #667180; font-size: 22rpx; }
+.role-state-action { color: #C9490C; font-size: 22rpx; font-weight: 600; }
+
+/* 分组竖排列表 */
+.list-card { margin-top: 20rpx; padding: 8rpx 28rpx; }
+.cell {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 28rpx 0;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+/* 半像素分隔线,左缩进 64rpx(图标 44 + 间距 20)对齐文字起点 */
+.cell::after {
+  content: '';
+  position: absolute;
+  left: 64rpx; right: 0; bottom: 0;
+  height: 1px;
+  background: #ECEEF2;
+  transform: scaleY(0.5);
+  transform-origin: 0 100%;
+}
+.cell:last-child::after { display: none; }
+.cell-ic { width: 44rpx; height: 44rpx; }
+.cell-t { font-size: 30rpx; font-weight: 500; color: #171C24; flex: 1; text-align: left; }
+.cell-hint { font-size: 24rpx; color: #C9490C; }
+/* 分享行:视觉是普通 cell,透明 button 覆盖层负责触发分享
+   (微信 button 默认样式在不同基础库表现不一,不参与布局最稳) */
+.share-cell { position: relative; }
+.share-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  padding: 0; margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  opacity: 0;
+}
+.share-overlay::after { border: none; }
+
+.openid-row { text-align: center; padding: 30rpx 0 20rpx; }

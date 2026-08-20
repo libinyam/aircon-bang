@@ -1,0 +1,43 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/market/market",
+    "pages/listingDetail/listingDetail",
+    "pages/publishListing/publishListing",
+    "pages/myListings/myListings",
+    "pages/publish/publish",
+    "pages/orders/orders",
+    "pages/orderDetail/orderDetail",
+    "pages/pool/pool",
+    "pages/masterApply/masterApply",
+    "pages/mine/mine",
+    "pages/admin/admin",
+    "pages/agreement/agreement"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "空调帮",
+    "backgroundColor": "#F6F7F9"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#667180",
+    "selectedColor": "#F25B15",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页" },
+      { "pagePath": "pages/market/market", "text": "买空调" },
+      { "pagePath": "pages/pool/pool", "text": "接单大厅" },
+      { "pagePath": "pages/mine/mine", "text": "我的" }
+    ]
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于填写维修地址和计算师傅与订单的距离"
+    }
+  },
+  "requiredPrivateInfos": ["getLocation", "chooseLocation"],
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}
