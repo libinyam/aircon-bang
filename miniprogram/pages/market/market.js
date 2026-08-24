@@ -1,6 +1,7 @@
 // 买空调 · 市场列表(tab 页):师傅直卖新机/二手机,信息展示 + 电话联系 + 线下当面交易
 const { relTime, callFn, mergeById } = require('../../utils/util')
 const { conditionName, unitTypeName, hpName, gradeName } = require('../../utils/constants')
+const config = require('../../utils/config')
 
 Page({
   data: {
@@ -49,7 +50,7 @@ Page({
         loadError: false
       })
     } catch (e) {
-      // 失败保留已有列表,只标记错误态( 同约定)
+      // 失败保留已有列表,只标记错误态
       if (gen === this._gen) this.setData({ loaded: true, loadError: true })
     } finally {
       if (gen === this._gen) this._loading = false
@@ -64,8 +65,11 @@ Page({
 
   retryLoad() { this.loadMarket(0) },
   goDetail(e) { wx.navigateTo({ url: `/pages/listingDetail/listingDetail?id=${e.currentTarget.dataset.id}` }) },
-
   onShareAppMessage() {
-    return { title: '师傅直卖空调,新机二手都有,当面验货', path: '/pages/market/market' }
+    return {
+      title: config.SHARE.market.title,
+      path: config.SHARE.market.path,
+      imageUrl: config.SHARE_COVER
+    }
   }
 })

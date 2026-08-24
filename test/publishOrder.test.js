@@ -8,7 +8,9 @@ const fid = (openid, name) => `cloud://env.appid/orders/${openid}/${name}.jpg`
 
 function baseEvent() {
   return {
-    category: 'repair',
+    requestId: 'req-1',
+    categories: ['repair'],
+    scene: 'home',
     desc: '空调开机不制冷,外机不转',
     photos: [],
     location: { latitude: 23.129112, longitude: 113.264385 },
@@ -26,10 +28,10 @@ function fixtures() {
   return { orders: [], users: [{ openid: 'u1' }], config: [{ _id: 'app' }], media_checks: [] }
 }
 
-async function publish(event, fx, { msgSec, mediaCheck, download, send } = {}) {
+async function publish(event, fx, { msgSec, mediaCheck, download, send, openid } = {}) {
   jest.resetModules()
   global.__mockDb = fakeDb(fx)
-  global.__mockCtx = { OPENID: 'u1' }
+  global.__mockCtx = { OPENID: openid || 'u1' }
   global.__mockDownload = download || JPEG
   global.__deletedFiles = []
   const cloudStub = require('wx-server-sdk')
@@ -56,7 +58,11 @@ afterAll(() => { jest.useRealTimers() })
 
 describe('参数闸门', () => {
   test.each([
-    ['非法品类', { category: 'tv' }, '服务类型'],
+    ['非法品类', { categories: ['tv'] }, '服务类型'],
+    ['多选混入非法 key', { categories: ['repair', 'tv'] }, '服务类型'],
+    ['品类空数组', { categories: [] }, '服务类型'],
+    ['缺场景(家用/商用)', { scene: undefined }, '空调类型'],
+    ['非法场景', { scene: 'office' }, '空调类型'],
     ['描述太短', { desc: '坏了' }, '至少5个字'],
     ['描述超长', { desc: 'x'.repeat(501) }, '太长'],
     ['缺定位', { location: null }, '上门地址'],
@@ -202,6 +208,7 @@ describe('成功路径', () => {
     const order = fx.orders[0]
     expect(order.status).toBe('published')
     expect(order.userOpenid).toBe('u1')
+    expect(order.categories).toEqual(['repair'])   // 多选全集(单选时同形状)
     expect(order.expectSlot).toBe('morning')
     expect(order.expectEnd.getTime()).toBe(Date.UTC(2026, 7, 1, 12 - 8))
     expect(order.addressDetail).toBe('3栋502')
@@ -211,6 +218,49 @@ describe('成功路径', () => {
     // 照片送检登记
     expect(fx.media_checks).toHaveLength(1)
     expect(fx.media_checks[0]).toMatchObject({ type: 'order', status: 'pending' })
+  })
+})
+
+describe('品类多选', () => {
+  test('多选落库:categories 存全集,category 镜像首选项(兼容存量读方),categoryName 全名拼接', async () => {
+    const fx = fixtures()
+    const { res } = await publish(Object.assign(baseEvent(), { categories: ['clean', 'repair'] }), fx)
+    expect(res.ok).toBe(true)
+    expect(fx.orders[0].categories).toEqual(['clean', 'repair'])
+    expect(fx.orders[0].category).toBe('clean')
+    expect(fx.orders[0].categoryName).toBe('空调清洗+空调维修')
+  })
+
+  test('重复勾选去重;老客户端单选 category 字符串照常建单', async () => {
+    const fx = fixtures()
+    await publish(Object.assign(baseEvent(), { categories: ['repair', 'repair'] }), fx)
+    expect(fx.orders[0].categories).toEqual(['repair'])
+
+    const ev = baseEvent()
+    delete ev.categories
+    const fx2 = fixtures()
+    const { res } = await publish(Object.assign(ev, { category: 'repair' }), fx2)
+    expect(res.ok).toBe(true)
+    expect(fx2.orders[0].categories).toEqual(['repair'])
+    expect(fx2.orders[0].category).toBe('repair')
+  })
+
+  test('老客户端非法品类字符串照旧拒绝(闸门语义不放松)', async () => {
+    const ev = baseEvent()
+    delete ev.categories
+    const { res } = await publish(Object.assign(ev, { category: 'tv' }), fixtures())
+    expect(res.ok).toBe(false)
+    expect(res.msg).toContain('服务类型')
+  })
+
+  test('新单通知品类用短名拼接(thing 限 20 字,四品类全选也不超)', async () => {
+    const fx = fixtures()
+    fx.config = [{ _id: 'app', tplNewOrder: 'TPL-NEW' }]
+    fx.masters = [{ _id: 'm1', openid: 'm1', status: 'approved', cityKey: '广州', memberExpireAt: new Date(NOW + 3600 * 1000) }]
+    const sends = []
+    await publish(Object.assign(baseEvent(), { categories: ['repair', 'clean'] }), fx, { send: async (m) => { sends.push(m) } })
+    expect(sends).toHaveLength(1)
+    expect(sends[0].data.thing4.value).toBe('维修+清洗')
   })
 })
 
@@ -232,23 +282,33 @@ describe('订单号按北京时间生成,不依赖宿主时区', () => {
     const fx = fixtures()
     const { res } = await publish(baseEvent(), fx)
     expect(res.orderNo).toMatch(/^AC2608011000-\d{8}$/)
+    // 场景字段落库(grabOrder 按此定接单费档)
+    expect(fx.orders[0].scene).toBe('home')
+    expect(fx.orders[0].sceneName).toBe('家用')
+  })
+
+  test('商用单落库 scene=commercial', async () => {
+    const fx = fixtures()
+    const { res } = await publish(Object.assign(baseEvent(), { scene: 'commercial' }), fx)
+    expect(res.ok).toBe(true)
+    expect(fx.orders[0].scene).toBe('commercial')
+    expect(fx.orders[0].sceneName).toBe('商用')
   })
 })
 
 describe('新单通知轮转选取', () => {
   const validMaster = (id, city) => ({
-    _id: id, openid: id, status: 'approved', cityKey: city,
-    memberExpireAt: new Date(NOW + 3600 * 1000)
+    _id: id, openid: id, status: 'approved', cityKey: city
   })
 
-  test('同城有效会员被选中即打卡 lastNotifiedAt;异城/过期不选;模板未配置不打扰', async () => {
+  test('同城 approved 师傅被选中即打卡 lastNotifiedAt;异城/待审不选;模板未配置不打扰', async () => {
     const fx = fixtures()
     fx.config = [{ _id: 'app', tplNewOrder: 'TPL-NEW' }]
     fx.masters = [
       validMaster('m1', '广州'),
       validMaster('m2', '广州'),
-      validMaster('m3', '深圳'),                                                                 // 异城
-      Object.assign(validMaster('m4', '广州'), { memberExpireAt: new Date(NOW - 1000) })          // 会员过期
+      validMaster('m3', '深圳'),                                                       // 异城
+      Object.assign(validMaster('m4', '广州'), { status: 'pending' })                   // 待审
     ]
     const sent = []
     const { res } = await publish(baseEvent(), fx, { send: async (m) => { sent.push(m.touser); return {} } })
@@ -267,5 +327,88 @@ describe('新单通知轮转选取', () => {
     const r2 = await publish(baseEvent(), fx2, { send: async (m) => { sent2.push(m.touser); return {} } })
     expect(r2.res.ok).toBe(true)
     expect(sent2).toEqual([])
+  })
+})
+
+describe('发布幂等', () => {
+  test('同 requestId 重放:返回原单(duplicated 标记+同 orderNo),不重复建单', async () => {
+    const fx = fixtures()
+    const first = await publish(baseEvent(), fx)
+    expect(first.res.ok).toBe(true)
+
+    const again = await publish(baseEvent(), fx)
+    expect(again.res.ok).toBe(true)
+    expect(again.res.duplicated).toBe(true)
+    expect(again.res.orderNo).toBe(first.res.orderNo)
+    expect(again.res.orderId).toBe(first.res.orderId)
+    expect(fx.orders).toHaveLength(1)
+  })
+
+  test('重放发生在时段过期之后:前查命中直接返回原单,不被"期望时间已过"拦成重复发单', async () => {
+    const fx = fixtures()
+    const first = await publish(baseEvent(), fx)
+    expect(first.res.ok).toBe(true)
+    // 系统时间推进 26 小时滚过 expectEnd(上午时段 Aug1 04:00Z 截止,已过):
+    // 若幂等前查不先于时段校验,重放会吃"期望时间已过"而把用户引向重复发单
+    jest.setSystemTime(new Date(NOW + 26 * 3600 * 1000))
+    try {
+      const again = await publish(baseEvent(), fx)
+      expect(again.res.ok).toBe(true)
+      expect(again.res.duplicated).toBe(true)
+      expect(fx.orders).toHaveLength(1)
+    } finally {
+      jest.setSystemTime(new Date(NOW))
+    }
+  })
+
+  test('缺 requestId:拒绝(新契约必带)', async () => {
+    const ev = baseEvent()
+    delete ev.requestId
+    const { res } = await publish(ev, fixtures())
+    expect(res.ok).toBe(false)
+    expect(res.msg).toContain('请求标识')
+  })
+
+  test('跨用户撞 requestId:openid 作用域哈希各归各单,互不干扰', async () => {
+    const fx = fixtures()
+    const r1 = await publish(baseEvent(), fx)
+    const r2 = await publish(baseEvent(), fx, { openid: 'u2' })
+    expect(r1.res.ok).toBe(true)
+    expect(r2.res.ok).toBe(true)
+    expect(r2.res.duplicated).toBeUndefined()
+    expect(r2.res.orderId).not.toBe(r1.res.orderId)
+    expect(fx.orders).toHaveLength(2)
+  })
+})
+
+describe('联系方式拦截:desc/address 是广播面,贴联系方式直接拒', () => {
+  test.each([
+    ['desc 里写分隔手机号', { desc: '空调坏了,师傅电话联系 138-0730 6688' }],
+    ['address 里写微信引导', { address: '天河某小区 微信:abc123 加我' }]
+  ])('%s -> 拒绝并提示去电话栏填写', async (_label, patch) => {
+    const fx = fixtures()
+    const res = await publish(Object.assign(baseEvent(), patch), fx)
+    expect(res.res.ok).toBe(false)
+    expect(res.res.msg).toContain('联系方式')
+    expect(fx.orders).toHaveLength(0)
+  })
+
+  test('已上传的照片随拒绝清理,不留孤儿', async () => {
+    const fx = fixtures()
+    const e = baseEvent()
+    e.desc = '开机不制冷 联系 13807306688'
+    e.photos = [fid('u1', 'a')]
+    const { res, deleted } = await publish(e, fx)
+    expect(res.ok).toBe(false)
+    expect(res.msg).toContain('联系方式')
+    expect(deleted).toEqual([e.photos[0]])
+  })
+
+  test('楼栋门牌类数字不误伤,照常发单', async () => {
+    const fx = fixtures()
+    const e = baseEvent()
+    e.address = '天河区某小区3栋2单元801室'
+    const { res } = await publish(e, fx)
+    expect(res.ok).toBe(true)
   })
 })

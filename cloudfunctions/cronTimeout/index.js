@@ -16,6 +16,7 @@ exports.main = async () => {
     autoConfirmed: 0, autoConfirmHeld: 0, autoConfirmFailed: 0,
     statsCredited: 0, statsFailed: 0, statsFailedIds: [],
     reviewStatsCredited: 0, reviewStatsFailed: 0,
+    walletStuckFound: 0, walletRefunded: 0, walletRefundFailed: 0,
     privacyCleaned: 0, mediaCleanupRetried: 0, mediaApplyRetried: 0,
     uploadLogsResolved: 0, uploadOrphansCleaned: 0, error: ''
   }
@@ -52,8 +53,8 @@ exports.main = async () => {
     result.expectClosed = expiredExpect.stats.updated
 
     // 2) 师傅标记完成后用户超时未确认 -> 自动确认
-    // 单单隔离:一单出错只记数,不中断其他订单和后续清理阶段
-    // 投诉冻结:有未结投诉的单不自动确认;disputeHold 进翻转的原子条件,
+    //    单单隔离:一单出错只记数,不中断其他订单和后续清理阶段
+    //    投诉冻结:有未结投诉的单不自动确认;disputeHold 进翻转的原子条件,
     //    堵住"查完投诉数之后、状态翻转之前"新投诉入场的竞态(complain 先打标记再建投诉)
     try {
       const stale = (await db.collection('orders').where({
@@ -93,7 +94,7 @@ exports.main = async () => {
     }
 
     // 2b) 师傅完成数补账:状态翻转与统计累计解耦——翻转只打 statsCredited:false,
-    // 这里统一记账;手动确认与自动确认共用同一把认领锁,去掉 autoConfirmed
+    //     这里统一记账;手动确认与自动确认共用同一把认领锁,去掉 autoConfirmed
     //     过滤后上一轮记账失败的单都会被重新拾起,不再"状态已完成但永久漏计"
     try {
       const uncredited = (await db.collection('orders').where({
@@ -162,8 +163,76 @@ exports.main = async () => {
       log.error('review stats credit phase failed', {}, e)
     }
 
-    // 3) 隐私生命周期:完结满180天的订单,清除联系方式/称呼/门牌并删除照片
-    // 保留期从订单【完结时刻】起算(与隐私文案口径一致,);发布时间必然早于
+    // 2d) 接单费对账补退:grabOrder"扣款-抢单-退回"三段之间被杀/退款失败,
+    //     会留下无对应退款的扣款流水(grab 流水在、refund 流水不在、订单也非本人接成),
+    //     或 grabOrder 落的 need_manual 待补流水。两步走:
+    //     a. 检测:近 7 天(留 10 分钟避开进行中的抢单)无退款流水的 grab,且订单最终非
+    //        本人接成 -> 落 need_manual 退款流水(纯检测,_id 幂等,已存在则跳过)
+    //     b. 结算:全部 need_manual 退款流水 need_manual->done 条件认领后加钱,
+    //        加钱异常回滚认领下一轮重试(与 2b/2c 同模式,重复执行不会双退)
+    try {
+      const grabs = (await db.collection('wallet_logs').where(_.and([
+        { type: 'grab' },
+        { createdAt: _.gt(new Date(now - 7 * 24 * 3600 * 1000)) },
+        { createdAt: _.lt(new Date(now - 10 * 60 * 1000)) }
+      ])).limit(100).get()).data
+      const refunds = grabs.length
+        ? (await db.collection('wallet_logs').where({
+          _id: _.in(grabs.map(g => `refund:grab:${g.orderId}:${g.openid}`))
+        }).limit(100).get()).data
+ : []
+      const refunded = new Set(refunds.map(r => r._id))
+      // 批量取涉及订单:最终接单人 == 扣款人 = 合法扣费,不退
+      const orderIds = [...new Set(grabs.map(g => g.orderId))]
+      const orders = orderIds.length
+        ? (await db.collection('orders').where({ _id: _.in(orderIds) }).limit(100).get()).data
+ : []
+      const wonBy = Object.fromEntries(orders.map(o => [o._id, o.masterOpenid || '']))
+      for (const g of grabs) {
+        const refundId = `refund:grab:${g.orderId}:${g.openid}`
+        if (refunded.has(refundId) || wonBy[g.orderId] === g.openid) continue
+        try {
+          await db.collection('wallet_logs').add({
+            data: {
+              _id: refundId, openid: g.openid, type: 'refund', amount: -g.amount,
+              orderId: g.orderId, scene: g.scene, status: 'need_manual', createdAt: db.serverDate()
+            }
+          })
+          result.walletStuckFound++
+        } catch (e) { /* 流水已存在:跳过,由下方结算步处理 */ }
+      }
+
+      const pendings = (await db.collection('wallet_logs').where({
+        type: 'refund', status: 'need_manual'
+      }).limit(100).get()).data
+      for (const p of pendings) {
+        try {
+          const claim = await db.collection('wallet_logs').where({ _id: p._id, status: 'need_manual' })
+            .update({ data: { status: 'done', refundedAt: db.serverDate() } })
+          if (claim.stats.updated === 0) continue
+          const credit = await db.collection('wallets').where({ _id: p.openid })
+            .update({ data: { balance: _.inc(p.amount), updatedAt: db.serverDate() } })
+          if (credit.stats.updated === 0) {
+            // 钱包文档不存在(理论上扣过款必有,档案被异常删除?):关闭不重试,留日志人工核对
+            log.warn('refund settle: wallet not found', { orderId: p.orderId, openid: p.openid, amount: p.amount })
+            continue
+          }
+          result.walletRefunded++
+        } catch (e) {
+          result.walletRefundFailed++
+          log.error('refund settle failed, will retry next run', { orderId: p.orderId, openid: p.openid }, e)
+          await db.collection('wallet_logs').where({ _id: p._id, status: 'done' })
+            .update({ data: { status: 'need_manual' } })
+            .catch(e2 => log.error('refund settle rollback failed, needs manual reconcile', { orderId: p.orderId }, e2))
+        }
+      }
+    } catch (e) {
+      result.walletRefundFailed++
+      log.error('wallet reconcile phase failed', {}, e)
+    }
+
+    // 3) 隐私生命周期:完结满180天的订单,清除联系方式/称呼/地址/门牌并删除照片
+    //    保留期从订单【完结时刻】起算(与隐私文案口径一致,);发布时间必然早于
     //    完结时间,先用带索引的 publishedAt 粗筛,再逐单按终态时间精判
     //    有未处理投诉的订单跳过;privacyCleaned 标记防重,_.neq(true) 同时命中缺字段的历史订单
     const RETENTION_MS = 180 * 24 * 3600 * 1000
@@ -190,6 +259,8 @@ exports.main = async () => {
       await db.collection('orders').doc(o._id).update({
         data: {
           userPhone: '', userName: '', addressDetail: '', masterPhone: '', photos: [],
+          // 终态单长期留存无保留地址的必要,与注销清理同口径
+          address: '', location: null,
           privacyCleaned: true, privacyCleanedAt: db.serverDate()
         }
       })
@@ -228,7 +299,7 @@ exports.main = async () => {
     // 5) 上传登记清理:registerUpload 登记满24h仍是 pending 的清单,
     //    核对文件是否已被业务记录引用;未引用的即"上传成功但提交未完成"的孤儿,删除。
     //    正常提交的清单也会走到这里被标记 resolved(其文件全部有引用,零删除)。
-    // 删除失败不标记,留给下一轮重试(与隐私清理同策略,)
+    //    删除失败不标记,留给下一轮重试(与隐私清理同策略,)
     const staleUploads = (await db.collection('upload_logs').where({
       status: 'pending',
       createdAt: _.lt(new Date(now - 24 * 3600 * 1000))

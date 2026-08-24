@@ -38,9 +38,18 @@
       </view>
     </view>
 
-    <!-- 进行中的订单(细条样式):老用户的第一眼是个性化信息,排在营销位前 -->
-    <view class="sec-label" wx:if="{{activeOrders.length}}">进行中的单子</view>
+    <!-- 进行中的订单(细条样式):老用户的第一眼是个性化信息,排在营销位前。
+         用户看"我发的",认证师傅另看"我接的"——接的单不必再绕 我的→我的接单 -->
+    <view class="sec-label" wx:if="{{activeOrders.length}}">我发的单</view>
     <view class="order-strip" hover-class="hv-press" wx:for="{{activeOrders}}" wx:key="_id"
+          bindtap="goDetail" data-id="{{item._id}}">
+      <view class="strip-dot" style="background:{{statusMap[item.status].color}};box-shadow:0 0 0 7rpx {{statusMap[item.status].color}}22"></view>
+      <text class="strip-title">{{item.categoryName}} · {{statusMap[item.status].label}}</text>
+      <text class="strip-time flex-1">{{item.expectTime}}</text>
+      <view class="ic ic-chev ic-sm"></view>
+    </view>
+    <view class="sec-label" wx:if="{{masterOrders.length}}">我接的单</view>
+    <view class="order-strip" hover-class="hv-press" wx:for="{{masterOrders}}" wx:key="_id"
           bindtap="goDetail" data-id="{{item._id}}">
       <view class="strip-dot" style="background:{{statusMap[item.status].color}};box-shadow:0 0 0 7rpx {{statusMap[item.status].color}}22"></view>
       <text class="strip-title">{{item.categoryName}} · {{statusMap[item.status].label}}</text>

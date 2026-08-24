@@ -8,6 +8,26 @@
 
 /* 服务类型四小磁贴 */
 .svc-row { display: flex; gap: 16rpx; margin-top: 22rpx; }
+
+/* 家用/商用两格(横向文字格,与服务类型磁贴同一套选中语言) */
+.scene-row { display: flex; gap: 16rpx; margin-top: 22rpx; }
+.scene-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  padding: 22rpx 12rpx 20rpx;
+  background: #F6F7F9;
+  border: 2rpx solid transparent;
+  border-radius: 16rpx;
+  position: relative;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.scene-on { background: #FDEBE0; border-color: #F25B15; }
+.scene-name { font-size: 28rpx; font-weight: 500; color: #667180; }
+.scene-on .scene-name { font-weight: 600; color: #C9490C; }
+.scene-sub { font-size: 22rpx; color: #98A1AC; }
 .svc-cell {
   flex: 1;
   display: flex;
@@ -74,5 +94,4 @@
 .li-main { font-size: 28rpx; font-weight: 600; }
 .li-ph { font-size: 28rpx; color: #A9B1BD; }
 .li-input { font-size: 28rpx; }
-.li-input-phone { width: 280rpx; }
 .li-note { font-size: 24rpx; color: #667180; flex-shrink: 0; }

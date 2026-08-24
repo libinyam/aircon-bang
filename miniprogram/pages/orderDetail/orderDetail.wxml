@@ -10,10 +10,33 @@
     <view class="status-sub" wx:if="{{order.status === 'cancelled' && order.cancelReason}}">{{order.cancelReason}}</view>
   </view>
 
+  <!-- 等待接单雷达(v4.1,滴滴式):published 单给双方视角;围观师傅看到的仍走抢单动线 -->
+  <view class="radar-banner" wx:if="{{order.status === 'published' && role !== 'viewer'}}">
+    <view class="radar-disc">
+      <view class="radar-ring"></view>
+      <view class="radar-ring radar-ring--2"></view>
+      <view class="radar-ring radar-ring--3"></view>
+      <view class="radar-core"><view class="ic ic-cat-{{order.category}}"></view></view>
+    </view>
+    <view class="radar-title">正在呼叫附近师傅</view>
+    <view class="radar-sub">接单后微信通知你</view>
+  </view>
+
+  <!-- 状态时间轴(v4.1):用户/师傅视角渲染,围观视角信息量不足不渲染 -->
+  <view class="tl card" wx:if="{{role !== 'viewer' && timeline.length && order.status !== 'published'}}">
+    <view class="tl-node tl-node--{{item.state}}" wx:for="{{timeline}}" wx:key="label">
+      <view class="tl-dot"><view class="tl-pulse"></view></view>
+      <view class="tl-label">{{item.label}}</view>
+      <view class="tl-time">{{item.time}}</view>
+    </view>
+  </view>
+
   <!-- 订单内容 -->
   <view class="card">
     <view class="row-between">
-      <view class="text-strong">{{order.categoryName}}</view>
+      <view class="text-strong scene-head">
+        {{order.categoryName}}<text class="scene-tag {{order.scene === 'commercial' ? 'scene-tag--hot' : ''}}">{{sceneLabel}}</text>
+      </view>
       <view class="text-sub">{{order.orderNo}}</view>
     </view>
     <view class="mt16">{{order.desc}}</view>
@@ -22,6 +45,10 @@
              bindtap="previewPhoto" data-src="{{item}}"/>
     </view>
     <view class="info-row mt16"><text class="info-label">上门时间</text>{{order.expectTime}}</view>
+    <!-- 内嵌地图(v4.1):接单后订单定位点,点图即导航(openMap) -->
+    <map wx:if="{{markers.length}}" class="order-map" markers="{{markers}}"
+         latitude="{{markers[0].latitude}}" longitude="{{markers[0].longitude}}" scale="16"
+         bindtap="openMap" aria-label="查看位置,点击导航"/>
     <view class="info-row" bindtap="openMap">
       <text class="info-label">地址</text>
       <view class="flex-1">{{order.address}}{{order.addressDetail ? ' ' + order.addressDetail : ''}}<text wx:if="{{role === 'master'}}" class="nav-link"> 导航</text><view class="ic ic-chev-o ic-xs" wx:if="{{role === 'master'}}"></view></view>
@@ -29,29 +56,41 @@
     <view class="info-row"><text class="info-label">发布时间</text>{{publishedAtText}}</view>
   </view>
 
-  <!-- 师傅信息(用户视角,已接单后) -->
-  <view class="card" wx:if="{{role === 'user' && order.masterName}}">
-    <view class="card-title">接单师傅</view>
-    <view class="row-between">
-      <view>
-        <view class="text-strong">{{order.masterName}}</view>
-        <view class="text-sub mt8" wx:if="{{masterStats}}">
-          已完成 {{masterStats.done}} 单<text wx:if="{{masterStats.reviewCount}}"> · 评分 {{avgStars}}</text>
-        </view>
+  <!-- 接单师傅信任卡(v4.1 墨色):头像/口碑前置,白色圆钮一键拨打 -->
+  <view class="trust-card" wx:if="{{role === 'user' && order.masterName}}">
+    <image class="trust-avatar" wx:if="{{masterStats.avatar}}" src="{{masterStats.avatar}}" mode="aspectFill"/>
+    <view class="trust-avatar" wx:else>{{masterInitial}}</view>
+    <view class="trust-main">
+      <view class="trust-name-row">
+        <text class="trust-name">{{order.masterName}}</text>
+        <text class="trust-badge">平台师傅</text>
       </view>
-      <button class="btn-ghost call-btn" bindtap="callPhone" data-phone="{{order.masterPhone}}"><view class="ic ic-phone-o ic-sm"></view> 联系师傅</button>
+      <view class="trust-stats" wx:if="{{masterStats}}">
+        <block wx:if="{{masterStats.reviewCount}}">
+          <view class="ic ic-star-gold trust-star"></view>
+          <text class="trust-rating">{{avgStars}}</text>
+          <text class="trust-dot">·</text>
+          <text class="trust-done">完成 {{masterStats.done}} 单</text>
+        </block>
+        <text class="trust-done" wx:else>{{masterStats.done ? '完成 ' + masterStats.done + ' 单' : '新入驻师傅'}}</text>
+      </view>
+    </view>
+    <view class="trust-call" hover-class="hv-press" bindtap="callPhone" data-phone="{{order.masterPhone}}"
+          aria-role="button" aria-label="拨打电话给师傅">
+      <view class="ic ic-phone-o trust-call-ic"></view>
     </view>
   </view>
 
-  <!-- 用户信息(师傅视角) -->
-  <view class="card" wx:if="{{role === 'master'}}">
-    <view class="card-title">客户信息</view>
-    <view class="row-between">
-      <view>
-        <view class="text-strong">{{order.userName || '客户'}}</view>
-        <view class="text-sub mt8">{{order.userPhone}}</view>
-      </view>
-      <button class="btn-ghost call-btn" bindtap="callPhone" data-phone="{{order.userPhone}}"><view class="ic ic-phone-o ic-sm"></view> 联系客户</button>
+  <!-- 客户信息(师傅视角,v4.1 浅色版与信任卡同构) -->
+  <view class="card contact-card" wx:if="{{role === 'master'}}">
+    <view class="contact-avatar">{{userInitial}}</view>
+    <view class="contact-main">
+      <view class="contact-name">{{order.userName || '客户'}}</view>
+      <view class="contact-phone">{{order.userPhone}}</view>
+    </view>
+    <view class="contact-call" hover-class="hv-press" bindtap="callPhone" data-phone="{{order.userPhone}}"
+          aria-role="button" aria-label="拨打电话给客户">
+      <view class="ic ic-phone-o contact-call-ic"></view>
     </view>
   </view>
 
@@ -90,40 +129,44 @@
     <view class="text-sub mt8">用户确认后订单完成;72小时未确认将自动完成。误点了可撤销。</view>
   </view>
 
-  <!-- 会员到期提示:可看单但不能抢,和订单池口径一致 -->
-  <view class="card card-danger" wx:if="{{role === 'viewer' && order.status === 'published' && !memberValid}}">
-    <view class="text-strong text-danger">会员已到期,暂不能抢单</view>
-    <view class="text-sub mt8">联系平台续费后即可继续接单:{{servicePhone}}</view>
+  <!-- 余额不足提示(接单费制):可看单但不能接,和订单池口径一致 -->
+  <view class="card card-danger" wx:if="{{role === 'viewer' && order.status === 'published' && balanceShortage}}">
+    <view class="text-strong text-danger">钱包余额不足,暂不能接本单</view>
+    <view class="text-sub mt8">接{{sceneLabel}}单需服务费 ¥{{feeText}},当前余额 ¥{{balanceText}};充值后即可接单。</view>
+    <button class="btn-cta mt16" hover-class="hv-press" bindtap="goWallet">去充值</button>
   </view>
 
-  <!-- 操作区 -->
-  <view class="action-bar">
-    <!-- 围观师傅:抢单;会员过期禁用并明示,服务端 grabOrder 仍会校验 -->
-    <button class="btn-primary flex-1" wx:if="{{role === 'viewer' && order.status === 'published'}}"
-            bindtap="grab" disabled="{{acting || !memberValid}}">{{memberValid ? '立即抢单' : '会员已到期'}}</button>
+  <!-- 吸底操作面板(v4.1):主按钮全宽,次操作收进"更多";上缘发丝线+安全区 -->
+  <view class="action-panel">
+    <!-- 更多面板:次操作展开层(项按角色+状态由 buildMoreItems 适配) -->
+    <view class="more-sheet" wx:if="{{moreOpen}}">
+      <view class="more-item" hover-class="hv-cell" wx:for="{{moreItems}}" wx:key="fn"
+            bindtap="onMoreAction" data-fn="{{item.fn}}">{{item.label}}</view>
+    </view>
 
-    <!-- 用户操作 -->
-    <button class="btn-danger-ghost flex-1" wx:if="{{role === 'user' && order.status === 'published'}}"
-            bindtap="cancel" disabled="{{acting}}">取消订单</button>
-    <button class="btn-danger-ghost flex-1" wx:if="{{role === 'user' && order.status === 'accepted'}}"
-            bindtap="cancel" disabled="{{acting}}">协商取消</button>
-    <button class="btn-danger-ghost flex-1" wx:if="{{role === 'user' && order.status === 'pending_confirm'}}"
-            bindtap="rejectFinish" disabled="{{acting}}">未完成,驳回</button>
-    <button class="btn-primary flex-1" wx:if="{{role === 'user' && order.status === 'pending_confirm'}}"
-            bindtap="confirm" disabled="{{acting}}">确认完成</button>
+    <view class="action-row">
+      <!-- 围观师傅:接单(按单扣费);余额不足转为充值引导,服务端 grabOrder 仍会校验 -->
+      <button class="btn-primary flex-1" wx:if="{{role === 'viewer' && order.status === 'published'}}"
+              hover-class="hv-press" bindtap="grab" disabled="{{acting}}">{{balanceShortage ? '余额不足 · 去充值' : '立即接单 ¥' + feeText}}</button>
 
-    <!-- 师傅操作 -->
-    <button class="btn-danger-ghost flex-1" wx:if="{{role === 'master' && order.status === 'accepted'}}"
-            bindtap="cancel" disabled="{{acting}}">协商取消</button>
-    <button class="btn-primary flex-1" wx:if="{{role === 'master' && order.status === 'accepted'}}"
-            bindtap="finish" disabled="{{acting}}">维修已完成</button>
-    <button class="btn-ghost flex-1" wx:if="{{role === 'master' && order.status === 'pending_confirm'}}"
-            bindtap="undoFinish" disabled="{{acting}}">撤销完成</button>
+      <!-- 用户:published 取消是唯一动作,直出主按钮;其余主操作=确认完成 -->
+      <button class="btn-danger-ghost flex-1" wx:if="{{role === 'user' && order.status === 'published'}}"
+              hover-class="hv-press" bindtap="cancel" disabled="{{acting}}">取消订单</button>
+      <button class="btn-primary flex-1" wx:if="{{role === 'user' && order.status === 'pending_confirm'}}"
+              hover-class="hv-press" bindtap="confirm" disabled="{{acting}}">确认完成</button>
 
-    <!-- 投诉入口:双方,接单后任意阶段都可用——服务进行中恰是纠纷高发窗口 -->
-    <button class="btn-ghost flex-1"
-            wx:if="{{(role === 'user' || role === 'master') && order.status !== 'published'}}"
-            bindtap="complain" disabled="{{acting}}">投诉 / 反馈</button>
+      <!-- 师傅:主操作=维修已完成 / 撤销完成 -->
+      <button class="btn-primary flex-1" wx:if="{{role === 'master' && order.status === 'accepted'}}"
+              hover-class="hv-press" bindtap="finish" disabled="{{acting}}">维修已完成</button>
+      <button class="btn-ghost flex-1" wx:if="{{role === 'master' && order.status === 'pending_confirm'}}"
+              hover-class="hv-press" bindtap="undoFinish" disabled="{{acting}}">撤销完成</button>
+
+      <view class="more-btn" hover-class="hv-cell" bindtap="toggleMore" aria-role="button" aria-label="更多操作"
+            wx:if="{{(role === 'user' || role === 'master') && order.status !== 'published'}}">
+        <view class="more-dots">···</view>
+        <view class="more-btn-text">更多</view>
+      </view>
+    </view>
   </view>
   <view class="spacer40"></view>
 </view>

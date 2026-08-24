@@ -1,6 +1,8 @@
 // 我的上架(卖家管理页):改价/下架/重新上架/标已售/删除,全部走 updateListing 条件原子更新
+// 打开体验:进「我的」tab 已后台预取(utils/listingsCache),onLoad 新鲜缓存先整页上屏
+// 再静默刷新收敛——首屏不等 getListings 往返(冷启动+换链约 1s)
 const { callFn, mergeById } = require('../../utils/util')
-const { LISTING_STATUS, LISTING_STATUS_MAP, unitTypeName, hpName, gradeName } = require('../../utils/constants')
+const listingsCache = require('../../utils/listingsCache')
 
 Page({
   data: {
@@ -12,7 +14,14 @@ Page({
     acting: false
   },
 
-  onLoad() { this.loadPage(0) },
+  onLoad() {
+    // 缓存先上屏:loaded 置 true 跳过 spinner,随后的静默刷新覆盖为最新
+    const cached = listingsCache.peekMine()
+    if (cached) {
+      this.setData({ listings: cached.rows, page: 0, noMore: cached.noMore, loaded: true, loadError: false })
+    }
+    this.loadPage(0, { silent: !!cached })
+  },
   onPullDownRefresh() { this.loadPage(0).finally(() => wx.stopPullDownRefresh()) },
   onReachBottom() {
     if (!this.data.noMore && this.data.loaded && !this._loading) {
@@ -20,28 +29,14 @@ Page({
     }
   },
 
-  async loadPage(page = 0) {
+  // silent:屏上已有内容时的后台刷新——失败不弹 toast 不进错误态,保留现状
+  async loadPage(page = 0, { silent = false } = {}) {
     const gen = this._gen = (this._gen || 0) + 1
     this._loading = true
     try {
       const res = await callFn('getListings', { action: 'mine', page })
       if (gen !== this._gen) return
-      const mapped = res.data.map(l => {
-        const st = LISTING_STATUS_MAP[l.status] || { label: l.status, color: '#667180' }
-        return Object.assign(l, {
-          statusLabel: st.label,
-          statusColor: st.color,
-          condText: l.condition === 'new' ? '新机' : (gradeName(l.usedGrade) || '二手机'),
-          specText: [unitTypeName(l.unitType), hpName(l.hp)].filter(Boolean).join(' · '),
-          // 操作按钮可用性预计算(WXML 不写裸状态字面量)
-          canOffShelf: l.status === LISTING_STATUS.ON_SALE,
-          canOnShelf: l.status === LISTING_STATUS.OFF_SHELF,
-          canSold: l.status === LISTING_STATUS.ON_SALE || l.status === LISTING_STATUS.OFF_SHELF,
-          canEdit: l.status === LISTING_STATUS.ON_SALE || l.status === LISTING_STATUS.OFF_SHELF,
-          canDelete: l.status === LISTING_STATUS.OFF_SHELF,
-          reasonText: l.removedReason || l.offShelfReason || ''
-        })
-      })
+      const mapped = listingsCache.mapRows(res.data)
       this.setData({
         listings: page === 0 ? mapped : mergeById(this.data.listings, mapped),
         page,
@@ -49,8 +44,11 @@ Page({
         loaded: true,
         loadError: false
       })
+      if (page === 0) listingsCache.putMine(mapped, !res.hasMore)
     } catch (e) {
-      if (gen === this._gen) this.setData({ loaded: true, loadError: true })
+      if (gen === this._gen && !(silent && this.data.listings.length)) {
+        this.setData({ loaded: true, loadError: true })
+      }
     } finally {
       if (gen === this._gen) this._loading = false
     }
@@ -68,7 +66,8 @@ Page({
       wx.showToast({ title: '操作成功', icon: 'none' })
     } catch (e) { /* 已提示 */ } finally {
       this.setData({ acting: false })
-      this.loadPage(0)
+      // 操作本身已 toast 结果,后续列表刷新静默:失败保留旧列表,下次下拉再收敛
+      this.loadPage(0, { silent: true })
     }
   },
 

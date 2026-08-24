@@ -1,8 +1,17 @@
 <view class="tab-bar" aria-role="tablist">
-  <view class="tab-item" wx:for="{{list}}" wx:key="pagePath"
-        bindtap="switchTab" data-index="{{index}}" data-path="{{item.pagePath}}"
-        aria-role="tab" aria-label="{{item.text}}" aria-selected="{{selected === index}}">
-    <view class="ic {{item.icon}} {{selected === index ? 'on' : ''}} tab-ic" aria-hidden="true"></view>
-    <view class="tab-text {{selected === index ? 'tab-text-on' : ''}}">{{item.text}}</view>
-  </view>
+  <block wx:for="{{list}}" wx:key="pagePath">
+    <!-- 中间凸起发单钮(v4.1):不是 tab 页,navigateTo 直达发单 -->
+    <view wx:if="{{item.action}}" class="tab-item tab-item--cta"
+          bindtap="switchTab" data-index="{{index}}" data-path="{{item.pagePath}}" data-action="{{item.action}}"
+          hover-class="hv-press" aria-role="button" aria-label="发单">
+      <view class="tab-cta-btn" aria-hidden="true">＋</view>
+      <view class="tab-text">{{item.text}}</view>
+    </view>
+    <view wx:else class="tab-item"
+          bindtap="switchTab" data-index="{{index}}" data-path="{{item.pagePath}}" data-action="{{item.action}}"
+          aria-role="tab" aria-label="{{item.text}}" aria-selected="{{selected === index}}">
+      <view class="ic {{item.icon}} {{selected === index ? 'on' : ''}} tab-ic" aria-hidden="true"></view>
+      <view class="tab-text {{selected === index ? 'tab-text-on' : ''}}">{{item.text}}</view>
+    </view>
+  </block>
 </view>

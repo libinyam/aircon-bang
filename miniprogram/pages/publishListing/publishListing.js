@@ -32,7 +32,7 @@ Page({
     if (m && m.status === 'approved') return
     const content = !m
       ? '发布空调商品需要先入驻并通过师傅审核,现在去申请入驻?'
-      : (m.status === 'pending' ? '你的入驻申请正在审核中,通过后即可发布商品' : '入驻申请未通过,请修改资料重新申请后再发布商品')
+ : (m.status === 'pending' ? '你的入驻申请正在审核中,通过后即可发布商品' : '入驻申请未通过,请修改资料重新申请后再发布商品')
     wx.showModal({
       title: '仅认证师傅可发布',
       content,

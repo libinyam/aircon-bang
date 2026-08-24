@@ -13,8 +13,20 @@ module.exports = {
     }
   },
   getWXContext() { return global.__mockCtx || { OPENID: 'test-openid' } },
+  // 微信支付统一下单(钱包充值用):默认成功;__mockCloudPay(opt) 可注入异常/自定义返回
+  cloudPay: {
+    async unifiedOrder(opt) {
+      if (global.__mockCloudPay) return global.__mockCloudPay(opt)
+      return { payment: { timeStamp: '1', nonceStr: 'n', package: 'prepay_id=x', signType: 'MD5', paySign: 's' }, returnCode: 'SUCCESS' }
+    },
+    // 订单反查(payCallback 入账前核验):默认已支付;__mockQueryOrder(opt) 注入异常/未支付/金额不符
+    async queryOrder(opt) {
+      if (global.__mockQueryOrder) return global.__mockQueryOrder(opt)
+      return { returnCode: 'SUCCESS', resultCode: 'SUCCESS', tradeState: 'SUCCESS' }
+    }
+  },
   async getTempFileURL({ fileList }) {
-    // 测试可通过 global.__mockTempFileURL(fileList) 注入失败/缺链结果( 严格模式回归)
+    // 测试可通过 global.__mockTempFileURL(fileList) 注入失败/缺链结果
     if (global.__mockTempFileURL) return global.__mockTempFileURL(fileList)
     return { fileList: (fileList || []).map(f => ({ fileID: f, tempFileURL: 'https://tmp/' + f })) }
   },

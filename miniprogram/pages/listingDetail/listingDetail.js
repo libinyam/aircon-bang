@@ -2,6 +2,7 @@
 // 合规红线:线下当面交易,平台不代收任何款项
 const { callFn } = require('../../utils/util')
 const { LISTING_STATUS, conditionName, unitTypeName, hpName, gradeName, yearsName } = require('../../utils/constants')
+const config = require('../../utils/config')
 
 Page({
   data: {
@@ -109,9 +110,10 @@ Page({
   onShareAppMessage() {
     const l = this.data.listing
     return {
-      title: l ? `${l.title} ¥${l.priceYuan}` : '师傅直卖空调,当面验货',
+      title: l ? `${l.title} ¥${l.priceYuan}` : config.SHARE.listing.title,
       path: `/pages/listingDetail/listingDetail?id=${this.data.id}`,
-      imageUrl: l && l.photos && l.photos[0] ? l.photos[0] : ''
+      // 商品图缺失/换链失败时退到包内封面:留空会让微信截当前页面
+      imageUrl: (l && l.photos && l.photos[0]) || config.SHARE_COVER
     }
   }
 })

@@ -12,8 +12,8 @@ const MAP = {
              'cancelOrder', 'cronTimeout', 'getOrders', 'submitReview', 'admin',
              'publishListing', 'getListings', 'updateListing', 'mediaCheckCallback'],
   'mediaFile.js': ['publishOrder', 'applyMaster', 'publishListing'],
-  // 业务编号(订单号/商品编号):共享生成与查重重试规则
-  'bizNo.js': ['publishOrder', 'publishListing'],
+  // 业务编号(订单号/商品编号/钱包充值单号):共享生成与查重重试规则
+  'bizNo.js': ['publishOrder', 'publishListing', 'wallet'],
   'storage.js': ['cronTimeout', 'mediaCheckCallback', 'applyMaster', 'admin', 'updateListing'],
   // 违规媒体处置:回调实时处置与 cron 补偿重放共用(评审时序重构)
   'mediaApply.js': ['mediaCheckCallback', 'cronTimeout'],
@@ -22,7 +22,7 @@ const MAP = {
   'logger.js': ['login', 'publishOrder', 'getOrders', 'grabOrder', 'finishOrder', 'confirmOrder',
                 'cancelOrder', 'submitReview', 'applyMaster', 'complain', 'requestDeletion',
                 'admin', 'cronTimeout', 'mediaCheckCallback', 'registerUpload',
-                'publishListing', 'getListings', 'updateListing']
+                'publishListing', 'getListings', 'updateListing', 'wallet', 'payCallback']
 }
 
 function forEachCopy(fn) {

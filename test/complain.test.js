@@ -1,4 +1,4 @@
-// complain 投诉:归属校验、单订单去重、24h 限频、内容安全集成()
+// complain 投诉:归属校验、单订单去重、24h 限频、内容安全集成
 const { fakeDb } = require('./stubs/fakeDb')
 
 async function complain(fx, event, openid = 'u1', { msgSecCheck } = {}) {
@@ -91,6 +91,16 @@ describe('complain', () => {
   test('内容太短拒绝', async () => {
     const r = await complain(BASE(), { orderId: 'o1', content: '差评' })
     expect(r.ok).toBe(false)
+  })
+
+  test.each([
+    ['null', null],
+    ['数字', 12345],
+    ['对象', { text: '师傅迟到两小时未沟通' }]
+  ])('content 非字符串(%s):参数错误而非 500', async (_label, content) => {
+    const r = await complain(BASE(), { orderId: 'o1', content })
+    expect(r.ok).toBe(false)
+    expect(r.msg).toContain('参数错误')
   })
 
   describe('内容安全集成', () => {

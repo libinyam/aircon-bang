@@ -97,19 +97,59 @@
 .cell-ic { width: 44rpx; height: 44rpx; }
 .cell-t { font-size: 30rpx; font-weight: 500; color: #171C24; flex: 1; text-align: left; }
 .cell-hint { font-size: 24rpx; color: #C9490C; }
-/* 分享行:视觉是普通 cell,透明 button 覆盖层负责触发分享
-   (微信 button 默认样式在不同基础库表现不一,不参与布局最稳) */
-.share-cell { position: relative; }
-.share-overlay {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  padding: 0; margin: 0;
+/* 分享行:button 必须是本体,不能用透明覆盖层
+   (覆盖层写法下父 view 的 hover-class 不生效,且 opacity:0 连 button 默认 button-hover
+    也一起隐藏 → 整行零按压反馈,被当成功能失效)。
+   但 button 组件自带的居中布局(左右内边距 + margin auto + 居中对齐)优先级高于
+   页面的普通类选择器,页面里写 display/padding 抢不过它:行内容被收成居中一坨,
+   图标往右挪、箭头往左缩,跟上下几行差一大截(2026-08「推荐给朋友没有对齐」)。
+   所以这里不再跟它抢容器类型,只做两件能确定赢的事:
+   1) 把决定左右位置的三项(对齐/内边距/外边距)提到 !important —— 作者 !important
+      的层叠优先级高于组件自带声明,普通类选择器不行;
+   2) 让里层 .cell 在 block 和 flex 两种容器下都撑满整行(width + flex 各管一种),
+      这样不论 button 最终算成哪种盒子,行布局都由 .cell 说话,与其他 cell 同一套 flex */
+.share-cell {
+  /* display 与 width 也必须提权:上一版这两项写成普通声明,按钮被收成内容宽度
+     (shrink-wrap),于是图标虽已左对齐、箭头却紧跟文字停住,到不了卡片右缘
+     (2026-08「箭头还是没有靠最右」)。行宽锁死后,撑开文字挤走箭头这套机制
+     才和其他 cell 一样成立 */
+  display: flex !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  justify-content: flex-start !important;  /* 组件默认居中,必须提权顶掉 */
+  align-items: stretch;
+  padding: 0 !important;                   /* 组件默认左右内边距,同上 */
+  margin: 0 !important;                    /* 组件默认 margin auto 会把整行推向中间 */
+  background: transparent;
   border: none;
   border-radius: 0;
-  background: transparent;
-  opacity: 0;
+  text-align: left;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #171C24;
+  overflow: visible;
 }
-.share-overlay::after { border: none; }
+/* button 默认 ::after 是那圈 1px 边框叠层,整行外壳不需要 */
+.share-cell::after { display: none; }
+/* 里层 .cell 撑满:button 算 flex 时靠 flex,算 block 时靠 width。
+   同样要提权 —— 普通声明在 button 内部不可靠(上一轮已验证 !important 才稳) */
+.share-cell .cell {
+  display: flex !important;
+  width: 100% !important;
+  flex: 1 1 auto !important;
+  box-sizing: border-box;
+}
+/* 箭头要贴卡片右缘。其他行靠 .cell-t 的 flex:1 把文字撑开、顺势把箭头挤到最右;
+   但在 button 里文字没被撑开,箭头就紧挨着文字停住(2026-08「箭头没放在最右端」)。
+   所以不指望文字伸缩,直接把箭头 margin-left 设成 auto 顶到最右 —— 这条与
+   .cell-t 的 flex 各保一头,任一生效箭头都在右缘 */
+.share-cell .cell-t { flex: 1 1 auto !important; min-width: 0; }
+.share-cell .ic-chev { margin-left: auto !important; flex-shrink: 0; }
+/* 里层 .cell 是 button 的唯一子元素,会命中 .cell:last-child::after 被抹掉分隔线;
+   分享行后面永远还有"联系客服",这条线必须留着 */
+.share-cell .cell::after { display: block; }
+/* hover 态必须提权:.hv-cell 在 app.wxss,.share-cell 在页面 wxss(后加载),
+   同为单类选择器时后者胜出会把 hover 底色顶掉 */
+.share-cell.hv-cell { background: rgba(23, 28, 36, 0.05); }
 
 .openid-row { text-align: center; padding: 30rpx 0 20rpx; }

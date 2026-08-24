@@ -1,4 +1,4 @@
-const { ORDER_STATUS } = require('../../utils/constants')
+const { ORDER_STATUS, sceneName } = require('../../utils/constants')
 const { formatTime, callFn, mergeById } = require('../../utils/util')
 
 Page({
@@ -36,7 +36,10 @@ Page({
     try {
       const res = await callFn('getOrders', { action, page })
       if (gen !== this._gen) return
-      const list = res.data.map(o => Object.assign(o, { publishedAtText: formatTime(o.publishedAt) }))
+      const list = res.data.map(o => Object.assign(o, {
+        publishedAtText: formatTime(o.publishedAt),
+        sceneLabel: sceneName(o.scene) || '家用'
+      }))
       this.setData({
         orders: page === 0 ? list : mergeById(this.data.orders, list),
         page,

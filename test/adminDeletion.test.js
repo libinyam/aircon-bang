@@ -36,6 +36,7 @@ describe('成功执行:用户角色全量删除/匿名化', () => {
     fx.orders = [{
       _id: 'o1', userOpenid: U, masterOpenid: 'm-1', status: 'completed',
       userPhone: '13800138000', userName: '王先生', addressDetail: '3栋502',
+      address: '阳光花园', location: { type: 'Point', coordinates: [120.38, 36.07] },
       masterPhone: '13911112222', photos: ['cloud://a.jpg']
     }]
     fx.reviews = [{ _id: 'o1', userOpenid: U, masterOpenid: 'm-1', stars: 5, content: '很好' }]
@@ -49,6 +50,8 @@ describe('成功执行:用户角色全量删除/匿名化', () => {
     expect(o.userOpenid).toBe('deleted')
     expect(o.userPhone).toBe('')
     expect(o.addressDetail).toBe('')
+    expect(o.address).toBe('')            // 小区/POI 级地址也是注销承诺的"清除你的地址"
+    expect(o.location).toBe(null)         // 坐标同口径清除
     expect(o.photos).toEqual([])
     expect(global.__deletedFiles).toContain('cloud://a.jpg')
     expect(global.__deletedFiles).toContain('cloud://pending.jpg')
@@ -68,7 +71,7 @@ describe('成功执行:用户角色全量删除/匿名化', () => {
     const fx = FX()
     fx.deletion_requests[0].isMaster = true
     fx.masters = [{ _id: U, openid: U, realName: '李师傅', qualPhotos: ['cloud://id1.jpg'], orphanQualPhotos: ['cloud://old.jpg'], avatarPhoto: 'cloud://avatar.jpg' }]
-    fx.orders = [{ _id: 'o2', userOpenid: 'other-user', masterOpenid: U, status: 'completed', masterName: '李师傅', masterPhone: '139' }]
+    fx.orders = [{ _id: 'o2', userOpenid: 'other-user', masterOpenid: U, status: 'completed', masterName: '李师傅', masterPhone: '139', address: '幸福小区', location: { type: 'Point', coordinates: [120.38, 36.07] } }]
     fx.member_logs = [{ _id: 'req-1', masterId: U, masterName: '李师傅', amount: 300, months: 3 }]
     fx.media_checks = [{ _id: 'mc1', targetId: U, status: 'pending', fileID: 'cloud://id1.jpg' }]
 
@@ -82,6 +85,8 @@ describe('成功执行:用户角色全量删除/匿名化', () => {
     expect(o.masterPhone).toBe('')
     // 用户侧字段不动:那是对方的服务记录
     expect(o.userOpenid).toBe('other-user')
+    expect(o.address).toBe('幸福小区')      // 对方(发单用户)的地址不随师傅注销清除
+    expect(o.location).not.toBe(null)
     // 账务凭证保留,仅清姓名;送检记录作废
     expect(fx.member_logs[0].amount).toBe(300)
     expect(fx.member_logs[0].masterName).toBe('')

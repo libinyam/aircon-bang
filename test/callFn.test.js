@@ -43,4 +43,18 @@ describe('callFn', () => {
     await callFn('getOrders', {}).catch(() => {})
     expect(toasts).toHaveLength(1)
   })
+
+  // silent:后台预热/静默刷新场景——用户没主动发起这次调用,弹错只会打扰
+  test('silent 网络异常:不弹 toast 仍 reject 原错误', async () => {
+    const err = new Error('cloud function timeout')
+    callFunctionImpl = async () => { throw err }
+    await expect(callFn('getListings', {}, { silent: true })).rejects.toBe(err)
+    expect(toasts).toEqual([])
+  })
+
+  test('silent 业务失败:不弹 toast 仍 reject', async () => {
+    callFunctionImpl = async () => ({ result: { ok: false, msg: '参数错误' } })
+    await expect(callFn('getListings', {}, { silent: true })).rejects.toEqual({ ok: false, msg: '参数错误' })
+    expect(toasts).toEqual([])
+  })
 })

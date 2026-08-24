@@ -1,5 +1,8 @@
 const config = require('./utils/config')
 
+// 只读 getUser 的登录缓存有效期:角色变化最多滞后这么久自动收敛
+const USER_CACHE_MS = 60 * 1000
+
 App({
   globalData: {
     user: null,      // users 集合文档
@@ -9,6 +12,8 @@ App({
     loginError: false, // 登录云函数失败时为 true,身份页据此展示重试而非"未入驻/非管理员"
     statusBarHeight: 44 // 自定义导航页(首页 hero)占位用,onLaunch 里实测覆盖
   },
+
+  loginAt: 0,        // 上次登录成功时刻,配合 USER_CACHE_MS 判过期
 
   onLaunch() {
     if (!wx.cloud) {
@@ -25,9 +30,13 @@ App({
 
   // 静默登录:云函数拿 openid,upsert 用户;返回 Promise 供页面等待
   login() {
+    // 发起即记时:在途的登录不能被 TTL 判过期,否则 onLaunch 那次还没回来就被重复发起
+    // (冷启动会多打一次 login,test/appLogin.test.js 会拦)
+    this.loginAt = Date.now()
     return wx.cloud.callFunction({ name: 'login' }).then(res => {
       const { user, master, isAdmin, openid } = res.result
       Object.assign(this.globalData, { user, master, isAdmin, openid, loginError: false })
+      this.loginAt = Date.now()   // 成功时刻作为 TTL 起点
       return this.globalData
     }).catch(err => {
       console.error('login failed', err)
@@ -38,8 +47,14 @@ App({
 
   // 各页面 onShow 里调用,保证拿到登录态;forceRefresh 用于抢单/入驻后刷新角色
   // 上次登录失败时自动重试,身份页不要把 loginError 状态当成游客
+  // 只读调用带 TTL:入驻审核通过/会员开通/资格撤销都是服务端侧变化,
+  // 缓存永不过期会让角色永久停在启动时的快照(曾表现为"审核通过了 tab 还是师傅入驻")。
+  // 60s 是权衡:比"每次 show 都强刷"省调用,比"永不刷新"能自动收敛
   getUser(forceRefresh) {
-    if (forceRefresh || !this.loginReady || this.globalData.loginError) this.loginReady = this.login()
+    const expired = !this.loginAt || (Date.now() - this.loginAt) > USER_CACHE_MS
+    if (forceRefresh || !this.loginReady || this.globalData.loginError || expired) {
+      this.loginReady = this.login()
+    }
     return this.loginReady
   },
 

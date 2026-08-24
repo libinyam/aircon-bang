@@ -1,5 +1,5 @@
 const { ORDER_STATUS, MASTER_STATUS, LISTING_STATUS, LISTING_STATUS_MAP, categoryName, qualTypeLabel } = require('../../utils/constants')
-const { formatTime, formatDate, callFn } = require('../../utils/util')
+const { formatTime, callFn, formatFee } = require('../../utils/util')
 
 Page({
   data: {
@@ -27,7 +27,8 @@ Page({
     loadError: false,
     acting: false,
     health: null,
-    grant: { show: false, id: '', name: '', months: 3, amount: '', note: '' }
+    // 钱包调账弹层(接单费制):正数加款(线下收款入账),负数减款(退款/调平)
+    wallet: { show: false, id: '', name: '', balanceText: '--', amount: '', note: '', requestId: '' }
   },
 
   async onShow() {
@@ -62,11 +63,11 @@ Page({
         const res = await callFn('admin', { action: tab === 'pending' ? 'pendingMasters' : 'allMasters' })
         const masters = res.data.map(m => Object.assign(m, {
           categoryNames: (m.categories || []).map(categoryName).join(' / '),
-          memberText: m.memberExpireAt ? '有效期至 ' + formatDate(m.memberExpireAt) : '',
+          walletBalanceText: formatFee(m.walletBalance || 0),
           // 新申请带 qualTypes 平行标注:审核时能分清人像面/国徽面/证书/执照;老数据回退无标签九宫格
           qualLabeled: (Array.isArray(m.qualTypes) && m.qualTypes.length && Array.isArray(m.qualPhotos) && m.qualTypes.length === m.qualPhotos.length)
             ? m.qualPhotos.map((url, i) => ({ url, label: qualTypeLabel(m.qualTypes[i]) }))
-            : null
+ : null
         }))
         this.setData({ masters, loaded: true })
       } else if (tab === 'orders') {
@@ -105,7 +106,7 @@ Page({
           complaints: res.data.map(c => Object.assign(c, {
             titleText: c.targetType === 'listing'
               ? '商品举报 · ' + (c.listingNo || '')
-              : '单号 ' + (c.orderNo || '') + ' · ' + (c.fromRole === 'user' ? '用户' : '师傅') + '投诉',
+ : '单号 ' + (c.orderNo || '') + ' · ' + (c.fromRole === 'user' ? '用户' : '师傅') + '投诉',
             subText: c.targetType === 'listing' ? (c.listingTitle || '') : ''
           })),
           loaded: true
@@ -225,7 +226,7 @@ Page({
     if (pass) {
       wx.showModal({
         title: '通过入驻申请?',
-        content: '通过后需为其开通会员方可抢单',
+        content: '通过后师傅给钱包充值即可接单(家用 ¥20/单 · 商用 ¥300/单)',
         success: async r => {
           if (!r.confirm) return
           try {
@@ -252,28 +253,33 @@ Page({
     }
   },
 
-  openGrant(e) {
+  noop() {},
+  openWallet(e) {
     const { id, name } = e.currentTarget.dataset
     // 每次打开弹窗生成新的幂等键;同一弹窗内重复点确认只会成功一次
-    const requestId = 'g' + Date.now() + Math.random().toString(36).slice(2, 8)
-    this.setData({ grant: { show: true, id, name, months: 3, amount: '', note: '', requestId } })
+    const requestId = 'w' + Date.now() + Math.random().toString(36).slice(2, 8)
+    this.setData({ wallet: { show: true, id, name, balanceText: '--', amount: '', note: '', requestId } })
+    // 实时查余额做底数(列表数据可能已过期)
+    callFn('admin', { action: 'walletQuery', openid: id })
+      .then(res => this.setData({ 'wallet.balanceText': formatFee(res.balance) }))
+      .catch(() => { /* 已提示,保持 -- */ })
   },
-  closeGrant() { this.setData({ 'grant.show': false }) },
-  noop() {},
-  setMonths(e) { this.setData({ 'grant.months': e.currentTarget.dataset.m }) },
-  onGrantAmount(e) { this.setData({ 'grant.amount': e.detail.value }) },
-  onGrantNote(e) { this.setData({ 'grant.note': e.detail.value }) },
+  closeWallet() { this.setData({ 'wallet.show': false }) },
+  onWalletAmount(e) { this.setData({ 'wallet.amount': e.detail.value }) },
+  onWalletNote(e) { this.setData({ 'wallet.note': e.detail.value }) },
 
-  async doGrant() {
-    const g = this.data.grant
+  async doAdjust() {
+    const w = this.data.wallet
+    const amt = Number(w.amount)
+    if (!isFinite(amt) || amt === 0) return wx.showToast({ title: '请填写非零金额(正数加款/负数减款)', icon: 'none' })
     this.setData({ acting: true })
     try {
-      await callFn('admin', {
-        action: 'grantMember',
-        masterId: g.id, months: g.months, amount: g.amount, note: g.note, requestId: g.requestId
+      const res = await callFn('admin', {
+        action: 'walletAdjust',
+        openid: w.id, amountYuan: w.amount, remark: w.note, requestId: w.requestId
       })
-      wx.showToast({ title: '已开通', icon: 'success' })
-      this.closeGrant()
+      wx.showToast({ title: '已调账,余额 ¥' + formatFee(res.balance), icon: 'none' })
+      this.closeWallet()
       this.load()
     } catch (e) { /* 已提示 */ } finally { this.setData({ acting: false }) }
   },
@@ -319,7 +325,7 @@ Page({
     })
   },
 
-  // 处理删除申请:处理记录必填,后台留痕可审计;服务端要求先执行成功()
+  // 处理删除申请:处理记录必填,后台留痕可审计;服务端要求先执行成功
   handleDeletion(e) {
     const id = e.currentTarget.dataset.id
     wx.showModal({

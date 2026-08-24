@@ -2,6 +2,41 @@
 // ⚠️ 修改后执行 node scripts/sync-shared.js 同步副本;此目录不是云函数,不要上传部署
 const CATEGORY_KEYS = ['repair', 'clean', 'fluoride', 'move']
 const CATEGORY_NAMES = { repair: '空调维修', clean: '空调清洗', fluoride: '加氟利昂', move: '拆装移机' }
+// 短名(与前端 constants.js 各品类的 shortName 对应):订阅消息 thing 字段限 20 字,多选拼接只用短名
+const CATEGORY_SHORTS = { repair: '维修', clean: '清洗', fluoride: '加氟', move: '移机' }
+
+// 品类多选(发单可同时勾维修+清洗+加氟…):入参归一为数组并去重,兼容老客户端单选的 category 字符串。
+// 含任何非法 key 返回 null 由调用方拒绝——不静默丢弃,保持"非法品类直接拒"的闸门语义
+function normalizeCategories(input) {
+  const arr = Array.isArray(input) ? input : (input ? [input] : [])
+  const out = []
+  for (const k of arr) {
+    if (!CATEGORY_KEYS.includes(k)) return null
+    if (!out.includes(k)) out.push(k)
+  }
+  return out
+}
+
+// 订单品类读取侧统一入口:存量单只有单选 category,新单存 categories 数组(首选项仍镜像进 category)
+function orderCategories(order) {
+  if (!order) return []
+  return (order.categories && order.categories.length) ? order.categories : (order.category ? [order.category] : [])
+}
+
+// 品类展示名拼接:默认全名落库 categoryName(界面标题用,无字数限制);short=true 用短名
+// (订阅消息 thing 限 20 字,四品类全选短名拼接 11 字也不会超)
+function categoryText(cats, short) {
+  return (cats || []).map(k => (short ? CATEGORY_SHORTS : CATEGORY_NAMES)[k] || k).join('+')
+}
+
+// 订单场景(家用/商用)与接单费 —— 唯一费率源,前端镜像 utils/constants.js 的 SCENES
+// grabFee 单位为分(避免浮点误差),钱包余额/流水全链路同单位;
+// 接单费取代会员制:grabOrder 不再校验 memberExpireAt,改按 scene 扣 grabFee
+const SCENE_KEYS = ['home', 'commercial']
+const SCENES = {
+  home: { name: '家用', grabFee: 2000 },      // ¥20 / 单
+  commercial: { name: '商用', grabFee: 30000 } // ¥300 / 单
+}
 
 // 期望上门时段(北京时间小时);云函数运行在 UTC,换算用 Date.UTC(h-8)
 const SLOTS = {
@@ -71,4 +106,4 @@ const LISTING_ENUMS = {
   USED_YEARS: ['y1', 'y1_3', 'y3_5', 'y5_10', 'y10plus'] // 使用年限档
 }
 
-module.exports = { CATEGORY_KEYS, CATEGORY_NAMES, SLOTS, STATUS, ACTIVE_STATUSES, STATUS_FLOW, QUAL_TYPE, normalizeCity, LISTING_STATUS, LISTING_STATUS_FLOW, LISTING_ENUMS }
+module.exports = { CATEGORY_KEYS, CATEGORY_NAMES, CATEGORY_SHORTS, normalizeCategories, orderCategories, categoryText, SCENE_KEYS, SCENES, SLOTS, STATUS, ACTIVE_STATUSES, STATUS_FLOW, QUAL_TYPE, normalizeCity, LISTING_STATUS, LISTING_STATUS_FLOW, LISTING_ENUMS }

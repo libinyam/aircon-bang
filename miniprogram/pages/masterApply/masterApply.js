@@ -30,6 +30,13 @@ Page({
       return
     }
     const m = g.master
+    // 已有档案的不该看到申请表:tabBar 拦截曾把审核通过的师傅送到这里,
+    // 空白表单会让人以为要重填一遍。approved/pending 一律转 pool —— 它已有
+    // "接单大厅 / 审核中 / 未通过"三种状态页,是这两类身份的正确落点
+    if (m && (m.status === 'approved' || m.status === 'pending')) {
+      wx.switchTab({ url: '/pages/pool/pool' })
+      return
+    }
     if (m && m.status === 'rejected') {
       const catOn = {}
       for (const k of (m.categories || [])) catOn[k] = true

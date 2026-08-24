@@ -1,0 +1,40 @@
+<view class="page">
+  <!-- 余额卡 -->
+  <view class="w-hero">
+    <view class="w-hero-label">钱包余额(元)</view>
+    <view class="w-hero-num">¥{{balanceText}}</view>
+    <view class="w-hero-sub">接单自动扣服务费 · 家用 ¥20/单 · 商用 ¥300/单</view>
+  </view>
+
+  <!-- 充值 -->
+  <view class="card">
+    <view class="sec-title">选择充值金额</view>
+    <view class="w-opts">
+      <view class="w-opt {{pickedFee === item.fee ? 'w-opt-on' : ''}}"
+            wx:for="{{rechargeOptions}}" wx:key="fee"
+            bindtap="pickAmount" data-fee="{{item.fee}}">
+        <text class="w-opt-num">¥{{item.text}}</text>
+      </view>
+    </view>
+    <button class="btn-cta mt24" hover-class="hv-press" bindtap="recharge"
+            disabled="{{acting || !pickedFee}}">立即充值</button>
+    <view class="w-service">
+      <text class="text-sub">无法在线充值?请联系客服人工充值:</text>
+      <text class="w-service-phone" bindtap="callService">{{servicePhone}}</text>
+    </view>
+  </view>
+
+  <!-- 账单明细 -->
+  <view class="card">
+    <view class="card-title">账单明细</view>
+    <view wx:if="{{!logs.length && loaded}}" class="w-empty">还没有账单记录</view>
+    <view class="w-log" wx:for="{{logs}}" wx:key="_id">
+      <view class="flex-1">
+        <view class="w-log-t">{{item.typeText}}<text wx:if="{{item.statusText}}" class="w-log-status">{{item.statusText}}</text></view>
+        <view class="w-log-sub">{{item.timeText}}{{item.remark ? ' · ' + item.remark : ''}}</view>
+      </view>
+      <view class="w-log-amt {{item.amount >= 0 ? 'w-amt-pos' : ''}}">{{item.amountText}}</view>
+    </view>
+    <view wx:if="{{hasMore}}" class="w-more" bindtap="loadMore">查看更多</view>
+  </view>
+</view>

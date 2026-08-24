@@ -9,12 +9,19 @@ function formatTime(t) {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-// 带年份的日期,用于会员有效期等长周期展示 "2026-10-26"
+// 带年份的日期,用于钱包流水等长周期展示 "2026-10-26"
 function formatDate(t) {
   if (!t) return ''
   const d = t instanceof Date ? t : new Date(t)
   if (isNaN(d.getTime())) return ''
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// 分 -> 元展示文本:整元不带小数(2000->"20"),有角分保留两位(2050->"20.50")
+function formatFee(fen) {
+  const n = Number(fen)
+  if (!Number.isFinite(n)) return '0'
+  return n % 100 === 0 ? String(n / 100) : (n / 100).toFixed(2)
 }
 
 // 相对时间:"5分钟前 / 3小时前 / 07-26"
@@ -65,22 +72,23 @@ function imageExt(tempPath) {
   return ['jpg', 'jpeg', 'png'].indexOf(ext) >= 0 ? ext : 'jpg'
 }
 
-// 云函数调用统一封装:失败弹toast并reject
-function callFn(name, data) {
+// 云函数调用统一封装:失败弹toast并reject;silent 供后台预热/静默刷新用
+// (同样 reject,只是不弹 toast——屏上已有内容或用户根本没发起这次调用时,弹错只会打扰)
+function callFn(name, data, { silent = false } = {}) {
   return wx.cloud.callFunction({ name, data }).then(res => {
     const r = res.result
     if (r && r.ok === false) {
-      wx.showToast({ title: r.msg || '操作失败', icon: 'none' })
+      if (!silent) wx.showToast({ title: r.msg || '操作失败', icon: 'none' })
       return Promise.reject(r)
     }
     return r
   }).catch(err => {
     if (!(err && err.ok === false)) {
       console.error(`[${name}]`, err)
-      wx.showToast({ title: '网络异常,请重试', icon: 'none' })
+      if (!silent) wx.showToast({ title: '网络异常,请重试', icon: 'none' })
     }
     return Promise.reject(err)
   })
 }
 
-module.exports = { formatTime, formatDate, relTime, distanceKm, parseCity, isValidPhone, mergeById, imageExt, callFn }
+module.exports = { formatTime, formatDate, relTime, distanceKm, parseCity, isValidPhone, mergeById, imageExt, formatFee, callFn }

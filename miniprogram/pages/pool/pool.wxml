@@ -10,7 +10,7 @@
     </view>
     <view class="card">
       <view class="jp"><view class="ic ic-shield-f"></view><view class="flex-1"><view class="jp-t">维修费当面结算</view><view class="text-sub">客户直接付给你,平台不抽单佣金</view></view></view>
-      <view class="jp"><view class="ic ic-star-gold"></view><view class="flex-1"><view class="jp-t">会员制接单</view><view class="text-sub">费用透明,接多接少都不再多收</view></view></view>
+      <view class="jp"><view class="ic ic-wallet"></view><view class="flex-1"><view class="jp-t">按单付费接单</view><view class="text-sub">家用单 ¥20/单 · 商用单 ¥300/单,维修费全额归你</view></view></view>
       <view class="jp"><view class="ic ic-join-sq"></view><view class="flex-1"><view class="jp-t">实名审核上岗</view><view class="text-sub">认证标识让客户更信任你</view></view></view>
       <button class="btn-cta mt16" hover-class="hv-press" bindtap="goApply">立即申请入驻</button>
     </view>
@@ -47,16 +47,15 @@
 
   <!-- 已通过:订单池 -->
   <block wx:elif="{{state === 'approved'}}">
-    <!-- 暖色渐变头部:会员条 + 筛选 -->
+    <!-- 暖色渐变头部:钱包余额条 + 筛选 -->
     <view class="hall-head">
-      <view class="gold-bar" wx:if="{{memberValid}}">
-        <view class="ic ic-star-gold ic-sm"></view>
-        <text class="gold-text flex-1">接单会员 · 有效期至 {{memberExpireText}}</text>
-        <view class="gold-btn" bindtap="callService">续费</view>
-      </view>
-      <view class="gold-bar gold-bar--warn" wx:else>
-        <text class="gold-title gold-title--warn flex-1">会员未开通或已到期,开通后即可抢单</text>
-        <view class="gold-btn gold-btn--brand" bindtap="callService">联系开通</view>
+      <view class="gold-bar {{lowBalance ? 'gold-bar--warn' : ''}}">
+        <view class="ic ic-wallet ic-sm"></view>
+        <view class="flex-1 gold-main">
+          <view class="gold-title {{lowBalance ? 'gold-title--warn' : ''}}">钱包余额 ¥{{balanceText}}</view>
+          <view class="gold-sub {{lowBalance ? 'gold-sub--warn' : ''}}">{{lowBalance ? '余额不足,充值后即可抢单(家用 ¥20 / 商用 ¥300)' : '接单自动扣服务费 · 家用 ¥20 / 商用 ¥300'}}</view>
+        </view>
+        <view class="gold-btn {{lowBalance ? 'gold-btn--brand' : ''}}" bindtap="goWallet">{{lowBalance ? '去充值' : '充值'}}</view>
       </view>
 
       <view class="filter-row">
@@ -73,6 +72,18 @@
     </view>
 
     <view class="hall-body">
+      <!-- 我接的进行中订单:接走的单会从下方大厅消失,置顶细条让师傅第一眼找回(与首页同款样式) -->
+      <view wx:if="{{myActive.length}}">
+        <view class="sec-label">我接的单</view>
+        <view class="my-strip" hover-class="hv-press" wx:for="{{myActive}}" wx:key="_id"
+              bindtap="goDetail" data-id="{{item._id}}">
+          <view class="strip-dot" style="background:{{statusMap[item.status].color}};box-shadow:0 0 0 7rpx {{statusMap[item.status].color}}22"></view>
+          <text class="strip-title">{{item.categoryName}} · {{statusMap[item.status].label}}</text>
+          <text class="strip-time flex-1">{{item.expectTime}}</text>
+          <view class="ic ic-chev ic-sm"></view>
+        </view>
+      </view>
+
       <button class="btn-ghost subs-btn" wx:if="{{showSubscribe}}" bindtap="subscribeNewOrder">
         <view class="ic ic-bell-o ic-sm"></view> 开启新订单提醒
       </button>
@@ -106,6 +117,7 @@
           <view class="flex-1">
             <view class="row gap12">
               <text class="o-title">{{item.categoryName}}</text>
+              <view class="o-badge {{item.scene === 'commercial' ? 'o-badge-hot' : 'o-badge-plain'}}">{{item.sceneLabel}}</view>
               <view class="o-badge" wx:if="{{item.urgentText}}">{{item.urgentText}}</view>
             </view>
             <view class="o-desc">{{item.desc}}</view>
@@ -118,7 +130,7 @@
         <view class="o-foot">
           <text class="o-meta"><text class="o-meta-addr">{{item.address}}</text> · {{item.pubText}}</text>
           <button class="btn-cta btn-cta-sm" hover-class="hv-press" hover-stop-propagation="{{true}}" catchtap="grab" data-id="{{item._id}}"
-                  disabled="{{!memberValid || acting}}">抢单</button>
+                  disabled="{{acting}}">抢单 ¥{{item.feeText}}</button>
         </view>
       </view>
       <view class="text-sub list-end" wx:if="{{showOrders.length && noMore}}">没有更多了</view>

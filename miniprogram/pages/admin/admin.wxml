@@ -50,7 +50,7 @@
                mode="aspectFill" bindtap="previewQual" data-src="{{photo}}" data-list="{{item.qualPhotos}}"/>
       </view>
       <view class="text-sub mt8" wx:if="{{item.status === 'approved'}}">
-        会员:{{item.memberText || '未开通'}} · 完成 {{item.stats.done}} 单<text wx:if="{{item.stats.cancelled}}" class="text-danger"> · 接单后取消 {{item.stats.cancelled}} 次</text>
+        钱包:¥{{item.walletBalanceText || '0'}} · 完成 {{item.stats.done}} 单<text wx:if="{{item.stats.cancelled}}" class="text-danger"> · 接单后取消 {{item.stats.cancelled}} 次</text>
       </view>
 
       <view class="action-row mt16" wx:if="{{item.status === 'pending'}}">
@@ -62,7 +62,7 @@
         商品批量下架未完成{{item.listingSyncPendingCount > 0 ? '(待处理 ' + item.listingSyncPendingCount + ' 件)' : ''}},请重试
       </view>
       <view class="action-row mt16" wx:if="{{item.status === 'approved'}}">
-        <button class="btn-ghost flex-1" bindtap="openGrant" data-id="{{item._id}}" data-name="{{item.realName}}">开通/续费会员</button>
+        <button class="btn-ghost flex-1" bindtap="openWallet" data-id="{{item._id}}" data-name="{{item.realName}}">钱包调账</button>
         <button class="btn-danger-ghost flex-1" bindtap="revokeMaster" data-id="{{item._id}}" data-name="{{item.realName}}">撤销资格</button>
       </view>
       <view class="action-row mt16" wx:if="{{item.listingSyncPending}}">
@@ -151,23 +151,18 @@
     </view>
   </block>
 
-  <!-- 开通会员弹层 -->
-  <view class="mask" wx:if="{{grant.show}}" bindtap="closeGrant">
+  <!-- 钱包调账弹层(接单费制:线下收款入账/退款/纠纷调平) -->
+  <view class="mask" wx:if="{{wallet.show}}" bindtap="closeWallet">
     <view class="grant-panel" catchtap="noop">
-      <view class="card-title">为 {{grant.name}} 开通会员</view>
-      <view class="form-label mt16">开通月数</view>
-      <view class="row gap16">
-        <view class="month-chip {{grant.months === m ? 'chip-active' : ''}}"
-              wx:for="{{[1,3,6,12]}}" wx:for-item="m" wx:key="*this"
-              bindtap="setMonths" data-m="{{m}}">{{m}}个月</view>
-      </view>
-      <view class="form-label mt16">实收金额(元)</view>
-      <input class="form-input" type="digit" placeholder="线下实际收款金额" value="{{grant.amount}}" bindinput="onGrantAmount"/>
+      <view class="card-title">{{wallet.name}} 的钱包调账</view>
+      <view class="text-sub mt8">当前余额:¥{{wallet.balanceText}}</view>
+      <view class="form-label mt16">金额(元,正数加款 / 负数减款)</view>
+      <input class="form-input" type="digit" placeholder="例:100 加款入账 / -20 减款退回" value="{{wallet.amount}}" bindinput="onWalletAmount"/>
       <view class="form-label mt16">备注</view>
-      <input class="form-input" placeholder="例:微信转账收款,老张介绍" value="{{grant.note}}" bindinput="onGrantNote"/>
+      <input class="form-input" placeholder="例:微信转账收款入账 / 投诉退回接单费" value="{{wallet.note}}" bindinput="onWalletNote"/>
       <view class="action-row mt24">
-        <button class="btn-ghost flex-1" bindtap="closeGrant">取消</button>
-        <button class="btn-primary flex-1" bindtap="doGrant" disabled="{{acting}}">确认开通</button>
+        <button class="btn-ghost flex-1" bindtap="closeWallet">取消</button>
+        <button class="btn-primary flex-1" bindtap="doAdjust" disabled="{{acting}}">确认调账</button>
       </view>
     </view>
   </view>

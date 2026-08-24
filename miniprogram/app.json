@@ -11,6 +11,7 @@
     "pages/pool/pool",
     "pages/masterApply/masterApply",
     "pages/mine/mine",
+    "pages/wallet/wallet",
     "pages/admin/admin",
     "pages/agreement/agreement"
   ],

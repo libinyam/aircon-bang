@@ -15,6 +15,18 @@ const SLOTS = [
   { key: 'evening', label: '晚上 (18-21点)', short: '晚上', endHour: 21 }
 ]
 
+// 订单场景与接单费(与 _shared/biz.js 的 SCENES 保持一致):grabFee 单位为分,
+// 前端展示用 utils/util.js 的 formatFee 格式化(¥20 / ¥300)
+const SCENES = [
+  { key: 'home', name: '家用', grabFee: 2000 },
+  { key: 'commercial', name: '商用', grabFee: 30000 }
+]
+function sceneName(key) { return pickName(SCENES, key) }
+function grabFee(key) {
+  const it = SCENES.find(s => s.key === key)
+  return it ? it.grabFee : SCENES[0].grabFee // 老订单无 scene 按家用(与 grabOrder 口径一致)
+}
+
 // 订单状态 key 常量(与云函数母本 _shared/biz.js 的 STATUS 同源,)
 // JS 里判断状态用这里,不要写裸字符串;WXML 里的字面量由 test/statusMachine.test.js 守护
 const STATUS = {
@@ -132,6 +144,7 @@ function yearsName(key) { return pickName(USED_YEARS, key) }
 module.exports = {
   CATEGORIES, SLOTS, STATUS, ORDER_STATUS, MASTER_STATUS, QUAL_TYPES,
   categoryName, categoryShort, slotShort, qualTypeLabel,
+  SCENES, sceneName, grabFee,
   LISTING_STATUS, LISTING_STATUS_MAP, CONDITIONS, UNIT_TYPES, HP_OPTIONS,
   USED_GRADES, USED_YEARS, BRAND_SUGGESTS,
   conditionName, unitTypeName, hpName, gradeName, yearsName

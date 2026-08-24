@@ -80,14 +80,18 @@ const actions = {
     const m = (await db.collection('masters').where({ status: 'approved' }).limit(1).get()).data[0]
     const city = cityName || (m && m.serviceCity) || '广州市'
     const cats = category ? [category] : ((m && m.categories && m.categories.length) ? m.categories : ['repair'])
-    const where = {
-      status: STATUS.PUBLISHED,
-      cityKey: (m && m.cityKey) || normalizeCity(city),
-      userOpenid: _.neq('__smoke__'),
-      category: _.in(cats),
-      publishedAt: _.gt(new Date(Date.now() - 48 * 3600 * 1000)),
-      expectEnd: _.gt(new Date())
-    }
+    // 品类条件与 getOrders.pool 同形状(多选发单:老单按 category、新单按 categories 任一交集)
+    const catCond = _.or([{ category: _.in(cats) }, { categories: _.in(cats) }])
+    const where = _.and([
+      {
+        status: STATUS.PUBLISHED,
+        cityKey: (m && m.cityKey) || normalizeCity(city),
+        userOpenid: _.neq('__smoke__'),
+        publishedAt: _.gt(new Date(Date.now() - 48 * 3600 * 1000)),
+        expectEnd: _.gt(new Date())
+      },
+      catCond
+    ])
     const t0 = Date.now()
     try {
       const q = () => db.collection('orders').where(where).orderBy('publishedAt', 'desc')
@@ -127,7 +131,7 @@ const actions = {
       .orderBy('startedAt', 'desc').limit(1).get().catch(() => ({ data: [] }))).data[0] || null
     const cronAgeHours = lastCron
       ? Math.round((Date.now() - new Date(lastCron.startedAt).getTime()) / 3600000 * 10) / 10
-      : null
+ : null
 
     // 图片送检超过2小时仍 pending:回调没配置或回调失败的信号
     const mediaStuck = (await db.collection('media_checks').where({
@@ -173,6 +177,11 @@ const actions = {
 
   async allMasters() {
     const data = (await db.collection('masters').orderBy('appliedAt', 'desc').limit(100).get()).data
+    // 钱包余额一并下发:列表行直接展示,调账弹层用它做底数(接单费制,取代原会员信息)
+    const wallets = (await db.collection('wallets').limit(1000).get()).data
+    const balanceBy = {}
+    for (const w of wallets) if (Number.isFinite(w.balance)) balanceBy[w._id] = w.balance
+    for (const m of data) m.walletBalance = balanceBy[m.openid] || 0
     return { ok: true, data: await withQualURLs(data) }
   },
 
@@ -184,7 +193,7 @@ const actions = {
       data: Object.assign(
         pass
           ? { status: 'approved', rejectReason: '' }
-          : { status: 'rejected', rejectReason: reason || '资料不符合要求' },
+ : { status: 'rejected', rejectReason: reason || '资料不符合要求' },
         { operator: openid, auditedAt: db.serverDate() }
       )
     })
@@ -225,7 +234,9 @@ const actions = {
   // 线下收款后手动开通会员:在现有到期时间(未到期)或今天的基础上顺延 months 个月
   // 幂等设计:requestId 作 member_logs 文档ID,重复提交在写日志时失败;
   // 顺延失败则回滚日志,保证"到期日没变就没有日志"
-  async grantMember({ masterId, months, amount = 0, note = '', requestId }, openid) {
+  // amount 不给默认值:缺省必须被"请填写实收金额"拦下,
+  // 默认 0 会把"没填"静默记成"免费开通",账务口径不可区分
+  async grantMember({ masterId, months, amount, note = '', requestId }, openid) {
     const m = parseInt(months, 10)
     if (!masterId || !(m >= 1 && m <= 36)) return bad('月数需在1-36之间')
     if (!requestId || typeof requestId !== 'string' || requestId.length > 64) return bad('缺少请求标识,请关闭弹窗重试')
@@ -275,6 +286,78 @@ const actions = {
       return bad('开通冲突或失败,请刷新后重试')
     }
     return { ok: true, memberExpireAt: expire }
+  },
+
+  // 钱包查询:按师傅 openid 查余额与最近流水(admin 前端弹层展示)
+  async walletQuery({ openid }) {
+    if (!openid || typeof openid !== 'string') return bad('参数错误')
+    const w = (await db.collection('wallets').where({ _id: openid }).get()).data[0]
+    const logs = (await db.collection('wallet_logs').where({ openid })
+      .orderBy('createdAt', 'desc').limit(50).get()).data
+    return { ok: true, balance: w && Number.isFinite(w.balance) ? w.balance : 0, logs }
+  },
+
+  // 人工调账(充值收款入账/退款/纠纷调平):amountYuan 正数加款、负数减款(元)
+  // 幂等:requestId 作 wallet_logs 文档 ID,重复提交在写流水时失败;
+  // 动钱包失败则删流水回滚,保证"余额没变就没有流水"
+  async walletAdjust({ openid, amountYuan, remark = '', requestId }, operator) {
+    if (!openid || typeof openid !== 'string') return bad('参数错误')
+    if (!requestId || typeof requestId !== 'string' || requestId.length > 64) return bad('缺少请求标识,请关闭弹窗重试')
+    const amt = Number(amountYuan)
+    if (!isFinite(amt) || amt === 0) return bad('金额需为非零数字')
+    const amount = Math.round(amt * 100) // 分
+    if (Math.abs(amount) > 10 * 1000 * 1000) return bad('金额超出允许范围')
+
+    const w0 = (await db.collection('wallets').where({ _id: openid }).get()).data[0]
+    try {
+      await db.collection('wallet_logs').add({
+        data: {
+          _id: `admin:${requestId}`,
+          openid,
+          type: 'admin_adjust',
+          amount,
+          balanceAfter: w0 && Number.isFinite(w0.balance) ? w0.balance + amount : Math.max(amount, 0),
+          remark,
+          operatorOpenid: operator,
+          createdAt: db.serverDate()
+        }
+      })
+    } catch (e) {
+      return bad('该笔调账已处理过,请勿重复提交')
+    }
+
+    try {
+      if (amount >= 0) {
+        // 加款:无钱包则首建;并发首建撞 _id 退回 inc
+        const res = await db.collection('wallets').where({ _id: openid })
+          .update({ data: { balance: _.inc(amount), updatedAt: db.serverDate() } })
+        if (res.stats.updated === 0) {
+          try {
+            await db.collection('wallets').add({
+              data: { _id: openid, balance: amount, createdAt: db.serverDate(), updatedAt: db.serverDate() }
+            })
+          } catch (e) {
+            const retry = await db.collection('wallets').where({ _id: openid })
+              .update({ data: { balance: _.inc(amount), updatedAt: db.serverDate() } })
+            if (retry.stats.updated === 0) throw e
+          }
+        }
+      } else {
+        // 减款:余额条件更新防超扣,命中 0 行说明余额不够扣
+        const res = await db.collection('wallets').where({
+          _id: openid, balance: _.gte(-amount)
+        }).update({ data: { balance: _.inc(amount), updatedAt: db.serverDate() } })
+        if (res.stats.updated === 0) throw new Error('INSUFFICIENT')
+      }
+    } catch (e) {
+      await db.collection('wallet_logs').doc(`admin:${requestId}`).remove()
+        .catch(err => log.error('wallet_logs rollback failed, 需人工核对', { requestId }, err))
+      return bad(e.message === 'INSUFFICIENT' ? '师傅余额不足,不能减为负数' : '调账冲突或失败,请刷新后重试')
+    }
+
+    const w1 = (await db.collection('wallets').where({ _id: openid }).get()).data[0]
+    log.info('wallet adjusted', { openid, amount, requestId, operator })
+    return { ok: true, balance: w1 ? w1.balance : 0 }
   },
 
   async orders({ page = 0 }) {
@@ -370,7 +453,7 @@ const actions = {
   // 各集合处理策略(须与隐私说明页口径一致):
   //   users             删除文档(重新进入小程序会重建空档案)
   //   masters           删资质照片文件后删除文档;pending 送检记录作废
-  //   orders            终态单匿名化:联系方式/称呼/门牌/照片清除,openid 改 'deleted' 解除关联
+  //   orders            终态单匿名化:联系方式/称呼/地址(小区+坐标)/门牌/照片清除,openid 改 'deleted' 解除关联
   //                     (防止同 openid 重新登录后旧订单复联);进行中订单是阻断项
   //   listings          删照片后删除文档(纯营销内容无对手方凭证价值);其检测记录一并删除
   //                     (media_checks 的 fileID 路径含 openid,对商品类不能按"技术元数据"保留)
@@ -457,13 +540,16 @@ const actions = {
     const cl = await db.collection('contact_logs').where({ viewerOpenid: target }).remove()
     summary.contactLogsRemoved = (cl.stats && cl.stats.removed) || 0
 
-    // 作为用户的订单:照片删除成功才匿名化,失败保留 fileID 线索待重试(与 同策略)
+    // 作为用户的订单:照片删除成功才匿名化,失败保留 fileID 线索待重试(与  同策略)
     const anonymizedOrderIds = []
     for (const o of userOrders) {
       if (!(await tryDelete(o.photos, 'order photos'))) continue
       await db.collection('orders').doc(o._id).update({
         data: {
           userOpenid: 'deleted', userPhone: '', userName: '', addressDetail: '',
+          // 小区/POI 级地址与坐标也是"你的地址",注销承诺一并清;
+          // cityName/cityKey 只是城市粒度,留存不能定位到人
+          address: '', location: null,
           masterPhone: '', photos: [], privacyCleaned: true, deletionCleanedAt: db.serverDate()
         }
       })

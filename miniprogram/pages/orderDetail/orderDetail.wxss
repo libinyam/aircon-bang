@@ -11,7 +11,97 @@
 .info-label { color: #667180; width: 140rpx; flex-shrink: 0; }
 .nav-link { color: #C9490C; }
 
-.call-btn { height: 68rpx; line-height: 68rpx; padding: 0 26rpx; font-size: 26rpx; margin: 0; }
+/* 家用/商用场景徽标:与订单池口径一致(家用灰、商用橙) */
+.scene-head { display: flex; align-items: center; gap: 12rpx; }
+.scene-tag {
+  font-size: 22rpx; font-weight: 600;
+  color: #667180; background: #F1F3F6;
+  border-radius: 10rpx; padding: 4rpx 14rpx;
+}
+.scene-tag--hot { color: #fff; background: #F25B15; }
+
+/* ===== 状态时间轴(v4.1):走过=灰点+时间戳,当前=橙脉冲,未来=灰圈+虚线,取消=红色终态 ===== */
+.tl { display: flex; padding: 32rpx 16rpx 20rpx; }
+.tl-node { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; }
+/* 连接线画在节点前半段,状态随右侧节点:done/current 实线,future 虚线 */
+.tl-node::before {
+  content: '';
+  position: absolute; top: 11rpx; left: -50%; right: 50%;
+  border-top: 2rpx dashed #D5DAE1;
+}
+.tl-node:first-child::before { display: none; }
+.tl-node--done::before, .tl-node--current::before, .tl-node--stop::before { border-top: 2rpx solid #A9B1BD; }
+.tl-dot {
+  position: relative; z-index: 1; box-sizing: border-box;
+  width: 24rpx; height: 24rpx; border-radius: 50%;
+  background: #F6F7F9; border: 3rpx solid #D5DAE1;
+}
+.tl-node--done .tl-dot { background: #A9B1BD; border-color: #A9B1BD; }
+.tl-node--current .tl-dot { width: 28rpx; height: 28rpx; background: #F25B15; border-color: #F25B15; }
+.tl-node--stop .tl-dot { background: #CE3F36; border-color: #CE3F36; }
+.tl-pulse { display: none; }
+.tl-node--current .tl-pulse {
+  display: block; position: absolute;
+  top: -10rpx; left: -10rpx; right: -10rpx; bottom: -10rpx;
+  border-radius: 50%; background: #F25B15; opacity: 0.4;
+  animation: tl-pulse 1.6s ease-out infinite;
+}
+@keyframes tl-pulse {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.tl-label { font-size: 24rpx; line-height: 1.3; color: #A9B1BD; margin-top: 12rpx; }
+.tl-node--done .tl-label { color: #667180; font-weight: 500; }
+.tl-node--current .tl-label { color: #C9490C; font-weight: 600; }
+.tl-node--stop .tl-label { color: #CE3F36; font-weight: 500; }
+.tl-time { min-height: 32rpx; font-size: 22rpx; line-height: 1.4; color: #A9B1BD; margin-top: 2rpx; font-feature-settings: "tnum"; }
+.tl-node--current .tl-time { color: #667180; }
+
+/* ===== 师傅信任卡(v4.1 墨色):深底白字+橙徽标+白圆钮拨打,全页唯一深色区块 ===== */
+.trust-card {
+  display: flex; align-items: center; gap: 24rpx;
+  background: #1E2530; border-radius: 24rpx; padding: 28rpx;
+  margin-bottom: 24rpx;
+}
+.trust-avatar {
+  width: 96rpx; height: 96rpx; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(100deg, #FA6E2A, #F25B15);
+  color: #fff; font-size: 40rpx; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.trust-main { flex: 1; min-width: 0; }
+.trust-name-row { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
+.trust-name { font-size: 32rpx; font-weight: 600; line-height: 1.3; color: #fff; }
+.trust-badge {
+  flex-shrink: 0; font-size: 22rpx; font-weight: 600; letter-spacing: 2rpx;
+  color: #fff; background: #F25B15; border-radius: 8rpx; padding: 4rpx 12rpx;
+}
+.trust-stats { display: flex; align-items: center; gap: 10rpx; margin-top: 10rpx; }
+.trust-star { width: 26rpx; height: 26rpx; flex-shrink: 0; }
+.trust-rating { font-size: 26rpx; font-weight: 600; line-height: 1.1; color: #fff; font-feature-settings: "tnum"; }
+.trust-dot { font-size: 22rpx; color: rgba(255,255,255,0.4); }
+.trust-done { font-size: 24rpx; color: rgba(255,255,255,0.72); }
+.trust-call {
+  width: 88rpx; height: 88rpx; border-radius: 50%; background: #fff; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.trust-call-ic { width: 40rpx; height: 40rpx; }
+
+/* ===== 客户信息卡(师傅视角,v4.1 浅色版与信任卡同构;深色留给师傅侧身份) ===== */
+.contact-card { display: flex; align-items: center; gap: 24rpx; }
+.contact-avatar {
+  width: 96rpx; height: 96rpx; border-radius: 50%; flex-shrink: 0;
+  background: #FDEBE0; color: #C9490C; font-size: 40rpx; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.contact-main { flex: 1; min-width: 0; }
+.contact-name { font-size: 32rpx; font-weight: 600; line-height: 1.3; }
+.contact-phone { font-size: 26rpx; color: #667180; margin-top: 6rpx; font-feature-settings: "tnum"; }
+.contact-call {
+  width: 88rpx; height: 88rpx; border-radius: 50%; background: #FDEBE0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.contact-call-ic { width: 40rpx; height: 40rpx; }
 
 /* 星级:SVG 图标(替换 unicode ★) */
 .stars-input { display: flex; }
@@ -19,4 +109,68 @@
 .stars-static { display: flex; }
 .star-s { width: 34rpx; height: 34rpx; margin-right: 6rpx; }
 
-.action-bar { display: flex; gap: 20rpx; margin-top: 8rpx; }
+/* ===== 等待接单雷达(v4.1):published 单滴滴式呼叫区,三圈 1.8s 扩散 ===== */
+.radar-banner {
+  border-radius: 24rpx;
+  background: #E0761A;
+  padding: 40rpx 28rpx 32rpx;
+  margin-bottom: 24rpx;
+  position: relative;
+  overflow: hidden;
+}
+.radar-disc { position: relative; width: 152rpx; height: 152rpx; margin: 0 auto; }
+@keyframes radar-pulse {
+  0% { transform: scale(0.4); opacity: 0.5; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+.radar-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 4rpx solid rgba(255, 255, 255, 0.9);
+  animation: radar-pulse 1.8s ease-out infinite;
+}
+.radar-ring--2 { animation-delay: 0.6s; }
+.radar-ring--3 { animation-delay: 1.2s; }
+.radar-core {
+  position: absolute; inset: 0; border-radius: 50%; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8rpx 28rpx rgba(23, 28, 36, 0.18);
+}
+.radar-core .ic { width: 76rpx; height: 76rpx; }
+.radar-title { text-align: center; font-size: 34rpx; font-weight: 600; line-height: 1.3; color: #fff; margin-top: 24rpx; }
+.radar-sub { text-align: center; font-size: 24rpx; color: rgba(255, 255, 255, 0.85); margin-top: 6rpx; }
+
+/* ===== 内嵌地图(v4.1):地址行上方半屏定位块 ===== */
+.order-map {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 16rpx;
+  margin-top: 20rpx;
+}
+
+/* ===== 吸底操作面板(v4.1):主按钮全宽,次操作收进"更多" ===== */
+.action-panel {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  background: #fff;
+  border-top: 1rpx solid #ECEEF2;
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+}
+.action-row { display: flex; align-items: center; gap: 20rpx; }
+.more-sheet { border-bottom: 1rpx solid #ECEEF2; margin-bottom: 16rpx; }
+.more-item { padding: 26rpx 8rpx; font-size: 28rpx; color: #454F5E; position: relative; }
+.more-item:not(:last-child)::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 1px; background: #ECEEF2;
+  transform: scaleY(0.5); transform-origin: 0 100%;
+}
+.more-item:active { color: #CE3F36; }
+.more-btn {
+  width: 96rpx; height: 96rpx; flex-shrink: 0; border-radius: 16rpx;
+  background: #F6F7F9;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.more-dots { font-size: 28rpx; font-weight: 600; color: #667180; line-height: 1; letter-spacing: 2rpx; }
+.more-btn-text { font-size: 20rpx; color: #A9B1BD; margin-top: 4rpx; line-height: 1; }

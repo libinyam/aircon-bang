@@ -1,4 +1,4 @@
-// grantMember 会员开通:requestId 幂等+ 顺延日期计算()+ 金额口径()
+// grantMember 会员开通:requestId 幂等+ 顺延日期计算+ 金额口径
 const { fakeDb } = require('./stubs/fakeDb')
 
 const NOW = new Date('2026-08-01T12:00:00Z').getTime()
@@ -37,6 +37,7 @@ describe('权限与参数闸门', () => {
     ['月数超36', { masterId: 'M1', months: 37, amount: 100, requestId: 'r1' }, '月数'],
     ['缺 requestId', { masterId: 'M1', months: 3, amount: 100 }, '请求标识'],
     ['金额空串(区分免费0元)', { masterId: 'M1', months: 3, amount: '', requestId: 'r1' }, '实收金额'],
+    ['未传金额(修复 amount=0 默认值,)', { masterId: 'M1', months: 3, requestId: 'r1' }, '实收金额'],
     ['金额为负', { masterId: 'M1', months: 3, amount: -1, requestId: 'r1' }, '金额不合法']
   ])('%s -> 拒绝', async (_label, params, msgPart) => {
     const r = await grant(params, fixtures())
@@ -110,7 +111,7 @@ describe('auditMaster 前置态条件更新', () => {
   })
 })
 
-describe('requestId 幂等(:失败重试不能重复延长会员)', () => {
+describe('requestId 幂等', () => {
   test('同一 requestId 第二次提交:拒绝,到期日不再变,日志只有一条', async () => {
     const fx = fixtures()
     const p = { masterId: 'M1', months: 3, amount: 300, requestId: 'same-req' }

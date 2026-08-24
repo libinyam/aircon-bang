@@ -251,3 +251,40 @@ describe('成功路径', () => {
     expect(fx.media_checks[0]).toMatchObject({ type: 'listing', targetId: res.listingId, status: 'pending' })
   })
 })
+
+describe('联系方式拦截:归一化匹配与变体词表', () => {
+  // 每条只改 desc 走完整发布流程;矩阵取自 的绕过变体
+  test.each([
+    ['裸手机号(基线)', '低价出 13807306688 非诚勿扰'],
+    ['空格分隔', '低价出 138 0730 6688 非诚勿扰'],
+    ['连字符', '低价出 138-0730-6688 非诚勿扰'],
+    ['点号', '低价出 138.0730.6688 非诚勿扰'],
+    ['全角数字', '低价出 １３８０７３０６６８８ 非诚勿扰'],
+    ['字母O替0', '电话 138O7306688 随时可看'],
+    ['weixin 冒号', 'weixin: abc123 慢聊'],
+    ['V信无冒号', 'V信 abc123 慢聊'],
+    ['微信同号', '手机微信同号 可小刀'],
+    ['加我', '有意加我看实物,价格好商量']
+  ])('拦截:%s', async (_label, desc) => {
+    const { res } = await publish(Object.assign(baseEvent(), { desc }), fixtures())
+    expect(res.ok).toBe(false)
+    expect(res.msg).toContain('联系方式')
+  })
+
+  test.each([
+    ['正常描述', '自用两年,搬家出,制冷制热都正常,内外机都洗干净了'],
+    ['同型号是合法高频词不误伤', '和客厅挂机同型号,可以组一对'],
+    ['含正常数字', '1.5匹 用了两年 价格可小刀'],
+    ['引导型文案(已知局限,靠图片审核兜底)', '成色看图,细节图里都有']
+  ])('放行:%s', async (_label, desc) => {
+    const { res } = await publish(Object.assign(baseEvent(), { desc }), fixtures())
+    expect(res.ok).toBe(true)
+  })
+
+  test('title 与 brand 同样过归一化匹配(不只 desc)', async () => {
+    const r1 = await publish(Object.assign(baseEvent(), { title: '急出 138 0730 6688' }), fixtures())
+    expect(r1.res.ok).toBe(false)
+    const r2 = await publish(Object.assign(baseEvent(), { brand: '１３８０７３０６６８８牌' }), fixtures())
+    expect(r2.res.ok).toBe(false)
+  })
+})

@@ -1,0 +1,41 @@
+.page { padding: 24rpx 24rpx 60rpx; }
+
+/* 余额卡:暖色渐变大数字,与接单大厅头部同一气质 */
+.w-hero {
+  background: linear-gradient(120deg, #FF8A3D, #F25B15);
+  border-radius: 24rpx;
+  padding: 44rpx 36rpx 40rpx;
+  color: #fff;
+}
+.w-hero-label { font-size: 26rpx; opacity: 0.9; }
+.w-hero-num { font-size: 76rpx; font-weight: 800; line-height: 1.2; margin-top: 8rpx; font-feature-settings: "tnum"; }
+.w-hero-sub { font-size: 24rpx; opacity: 0.85; margin-top: 10rpx; }
+
+/* 充值档位 */
+.w-opts { display: flex; gap: 16rpx; margin-top: 24rpx; }
+.w-opt {
+  flex: 1;
+  padding: 26rpx 0;
+  text-align: center;
+  background: #F6F7F9;
+  border: 2rpx solid transparent;
+  border-radius: 16rpx;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.w-opt-on { background: #FDEBE0; border-color: #F25B15; }
+.w-opt-num { font-size: 32rpx; font-weight: 700; color: #454F5E; font-feature-settings: "tnum"; }
+.w-opt-on .w-opt-num { color: #C9490C; }
+
+.w-service { text-align: center; margin-top: 20rpx; }
+.w-service-phone { color: #C9490C; font-size: 24rpx; text-decoration: underline; }
+
+/* 账单 */
+.w-empty { text-align: center; color: #A9B1BD; font-size: 26rpx; padding: 40rpx 0; }
+.w-log { display: flex; align-items: center; padding: 22rpx 0; border-bottom: 1px solid #F1F3F6; }
+.w-log:last-child { border-bottom: none; }
+.w-log-t { font-size: 28rpx; font-weight: 500; color: #171C24; }
+.w-log-status { font-size: 22rpx; color: #98A1AC; font-weight: 400; }
+.w-log-sub { font-size: 24rpx; color: #98A1AC; margin-top: 4rpx; }
+.w-log-amt { font-size: 32rpx; font-weight: 700; color: #171C24; font-feature-settings: "tnum"; }
+.w-amt-pos { color: #C9490C; }
+.w-more { text-align: center; font-size: 24rpx; color: #667180; padding: 20rpx 0 4rpx; }

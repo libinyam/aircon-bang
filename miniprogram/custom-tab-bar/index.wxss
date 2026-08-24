@@ -22,3 +22,15 @@
 .tab-ic { width: 48rpx; height: 48rpx; }
 .tab-text { font-size: 24rpx; color: #667180; }
 .tab-text-on { color: #F25B15; font-weight: 500; }
+
+/* 中间凸起发单钮(v4.1):品牌渐变 + CTA 彩色投影档(token 表唯一彩色投影),凸出 tabBar 上缘 */
+.tab-item--cta { justify-content: flex-end; padding-bottom: 6rpx; }
+.tab-cta-btn {
+  width: 96rpx; height: 96rpx; border-radius: 50%; box-sizing: border-box;
+  background: linear-gradient(100deg, #FA6E2A, #F25B15);
+  box-shadow: 0 10rpx 24rpx rgba(242, 91, 21, 0.25);
+  display: flex; align-items: center; justify-content: center;
+  margin-top: -44rpx;
+  color: #fff; font-size: 40rpx; font-weight: 300; line-height: 1;
+  padding-bottom: 6rpx;
+}

@@ -8,6 +8,12 @@ const db = cloud.database()
 const applyMediaRisk = require('./mediaApply')(cloud)
 
 exports.main = async (event) => {
+  // 来源校验:本函数只接受微信消息推送(wxa_media_check)。
+  // 云函数对任何登录用户开放直调,消息推送上下文无 OPENID 而客户端直调必然带——
+  // 拒绝客户端来源,堵死伪造 pass/risky 回调(摘图删文件不可逆)
+  const { OPENID } = cloud.getWXContext()
+  if (OPENID) return 'ignored: not from message push'
+
   const traceId = event.trace_id || event.traceId
   if (!traceId) return 'ignored: no trace_id'
   const suggest = (event.result && event.result.suggest) || ''   // pass / review / risky

@@ -5,7 +5,7 @@
 const AUTO_COLLECTIONS = [
   'users', 'masters', 'orders', 'reviews', 'member_logs',
   'complaints', 'media_checks', 'deletion_requests', 'cron_logs', 'upload_logs',
-  'listings', 'contact_logs'
+  'listings', 'contact_logs', 'wallets', 'wallet_logs'
 ]
 
 module.exports = { AUTO_COLLECTIONS }

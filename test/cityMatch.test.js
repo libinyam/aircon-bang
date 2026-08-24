@@ -91,9 +91,13 @@ describe('抢单按 cityKey 匹配', () => {
   ]
 
   test('手填"青岛"的师傅可抢"青岛市"的单;跨城依旧抢不到', async () => {
-    const fx = { orders: [qingdaoOrder({ userPhone: '138', userName: '王', address: 'x小区', addressDetail: '' })], masters: masters(), config: [{ _id: 'app' }] }
+    const fx = {
+      orders: [qingdaoOrder({ userPhone: '138', userName: '王', address: 'x小区', addressDetail: '' })],
+      masters: masters(), config: [{ _id: 'app' }],
+      wallets: [{ _id: 'm1', balance: 50000 }, { _id: 'm2', balance: 50000 }], wallet_logs: []
+    }
     const r1 = await grab(fx, 'm2')
-    expect(r1.ok).toBe(false)                       // 深圳师傅直调也抢不到青岛的单
+    expect(r1.ok).toBe(false)                       // 深圳师傅直调也抢不到青岛的单(服务费已退回)
     const r2 = await grab(fx, 'm1')
     expect(r2.ok).toBe(true)
     expect(fx.orders[0].masterOpenid).toBe('m1')
@@ -113,7 +117,7 @@ describe('发单侧 cityKey', () => {
     }
     const { main } = require('../cloudfunctions/publishOrder/index')
     const res = await main({
-      category: 'repair', desc: '空调开机不制冷,外机不转', photos: [],
+      requestId: 'cm-1', category: 'repair', scene: 'home', desc: '空调开机不制冷,外机不转', photos: [],
       location: { latitude: 36.07, longitude: 120.38 }, address: '市南某小区',
       cityName: '青岛市', expectDate: futureDate(), slotKey: 'morning',
       phone: '13800138000', contactName: '王先生'
@@ -135,8 +139,9 @@ describe('发单侧 cityKey', () => {
       orders: [], users: [{ openid: 'u1' }], media_checks: [],
       config: [{ _id: 'app', tplNewOrder: 'TPL-N' }],
       masters: [
-        { _id: 'm1', openid: 'm1', status: 'approved', serviceCity: '青岛', cityKey: '青岛', memberExpireAt: FUTURE() },
-        { _id: 'm2', openid: 'm2', status: 'approved', serviceCity: '深圳市', cityKey: '深圳', memberExpireAt: FUTURE() }
+        // 接单费制:推送不再筛会员,approved 同城即推;m2 异城不发
+        { _id: 'm1', openid: 'm1', status: 'approved', serviceCity: '青岛', cityKey: '青岛' },
+        { _id: 'm2', openid: 'm2', status: 'approved', serviceCity: '深圳市', cityKey: '深圳' }
       ]
     }
     const r = await publish(fx, sends)

@@ -2,16 +2,30 @@
   <view class="head-note">发布免费 · 费用与师傅当面结算</view>
 
   <view class="body">
-    <!-- 服务类型:四小磁贴 + 选中角标 -->
-    <view class="card">
-      <view class="sec-title">这次需要什么服务?</view>
-      <view class="svc-row">
-        <view class="svc-cell {{form.category === item.key ? 'svc-on' : ''}}"
+      <!-- 服务类型:四小磁贴 + 选中角标(可多选,如维修+清洗一起要) -->
+      <view class="card">
+        <view class="sec-title">这次需要什么服务?(可多选)</view>
+        <view class="svc-row">
+          <view class="svc-cell {{item.on ? 'svc-on' : ''}}"
               wx:for="{{categories}}" wx:key="key"
               bindtap="pickCategory" data-key="{{item.key}}">
-          <view class="ic ic-cat-{{item.key}}-{{form.category === item.key ? 'on' : 'g'}} svc-ic"></view>
+          <view class="ic ic-cat-{{item.key}}-{{item.on ? 'on' : 'g'}} svc-ic"></view>
           <text class="svc-name">{{item.shortName}}</text>
-          <view class="svc-check" wx:if="{{form.category === item.key}}"><view class="ic ic-check-w ic-xs"></view></view>
+          <view class="svc-check" wx:if="{{item.on}}"><view class="ic ic-check-w ic-xs"></view></view>
+        </view>
+      </view>
+
+      <view class="divider"></view>
+
+      <!-- 家用/商用:决定师傅接单费档位(家用 ¥20/单、商用 ¥300/单),发单时必选 -->
+      <view class="sec-title">空调类型?</view>
+      <view class="scene-row">
+        <view class="scene-cell {{form.scene === item.key ? 'scene-on' : ''}}"
+              wx:for="{{scenes}}" wx:key="key"
+              bindtap="pickScene" data-key="{{item.key}}">
+          <text class="scene-name">{{item.name}}</text>
+          <text class="scene-sub">{{item.tip}}</text>
+          <view class="svc-check" wx:if="{{form.scene === item.key}}"><view class="ic ic-check-w ic-xs"></view></view>
         </view>
       </view>
 
@@ -64,10 +78,14 @@
         </picker>
         <view class="ic ic-chev ic-sm"></view>
       </view>
+      <!-- 手机号/称呼拆两行:窄屏不再挤换行(v4 文字换行修复) -->
       <view class="li">
         <view class="li-dot li-dot-phone"></view>
-        <input class="li-input li-input-phone" type="number" maxlength="11" placeholder="联系手机号"
+        <input class="li-input flex-1" type="number" maxlength="11" placeholder="联系手机号"
                value="{{form.phone}}" bindinput="onInput" data-field="phone"/>
+      </view>
+      <view class="li">
+        <view class="li-dot li-dot-phone"></view>
         <input class="li-input flex-1" placeholder="称呼(选填)" maxlength="10"
                value="{{form.contactName}}" bindinput="onInput" data-field="contactName"/>
         <text class="li-note">仅接单师傅可见</text>

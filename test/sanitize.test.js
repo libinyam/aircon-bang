@@ -41,7 +41,8 @@ const HIDDEN_FROM_VIEWER = [
   'rejectCount', 'lastRejectReason', 'lastRejectedAt',
   'photosRisk',                                         // 违规标记,围观者无需感知
   'privacyCleaned', 'privacyCleanedAt',                 // 内部标记,围观者无需感知
-  'cityKey'                                             // 城市匹配键,内部匹配用,展示走 cityName
+  'cityKey',                                            // 城市匹配键,内部匹配用,展示走 cityName
+  'categories'                                          // 品类多选全集,匹配用内部键,展示走 categoryName
 ]
 
 const ALL_FIELDS = [...new Set([...publishOrderFields(), ...POST_PUBLISH_FIELDS])]

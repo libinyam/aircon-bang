@@ -20,7 +20,8 @@ const FX = () => ({
   orders: [
     {
       _id: 'o1', status: 'published', userOpenid: 'user-1', cityName: '广州市', cityKey: '广州',
-      category: 'repair', publishedAt: RECENT(), expectEnd: FUTURE(),
+      category: 'repair', categories: ['repair', 'clean'],   // 多选单:池响应只该见 categoryName,全集键不下发
+      publishedAt: RECENT(), expectEnd: FUTURE(),
       photos: ['cloud://x/orders/user-1/a.jpg', 'cloud://x/orders/user-1/b.jpg'],
       userPhone: '13800138000', addressDetail: '3栋502',
       location: { type: 'Point', coordinates: [113.264385, 23.129112] }
@@ -46,9 +47,11 @@ describe('订单池列表投影', () => {
     const body = JSON.stringify(r)
     expect(body).not.toContain('cloud://')
     expect(body).not.toContain('user-1')
-    // 既有脱敏不回退:手机号/门牌照旧不可见,坐标照旧模糊
+    // 既有脱敏不回退:手机号/门牌照旧不可见,坐标照旧模糊;
+    // 多选全集 categories 是匹配用内部键,围观展示走 categoryName,不下发
     expect(byId.o1.userPhone).toBeUndefined()
     expect(byId.o1.addressDetail).toBeUndefined()
+    expect(byId.o1.categories).toBeUndefined()
     expect(byId.o1.location.coordinates).toEqual([113.26, 23.13])
   })
 })

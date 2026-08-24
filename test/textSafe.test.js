@@ -52,3 +52,33 @@ describe('_shared 母本与云函数目录副本一致(验收:单独改任一副
     expect(copy).toBe(master)
   })
 })
+
+describe('联系方式拦截母本', () => {
+  const { CONTACT_RE, normalizeContact } = makeTextSafe
+  const hit = (t) => CONTACT_RE.test(normalizeContact(t))
+
+  test.each([
+    ['连续手机号', '空调坏了联系13807306688'],
+    ['空格分隔', '空调坏了 138 0730 6688 快来'],
+    ['连字符分隔', '打 138-0730-6688'],
+    ['全角数字', '电话:１３８０７３０６６８８'],
+    ['字母O混写', '138O7306 688 秒回'],
+    ['微信带号', '微信号:abc123 详聊'],
+    ['变体词', 'v信联系我'],
+    ['网址', '详情见 https://example.com/a']
+  ])('%s -> 拦截', (_label, text) => {
+    expect(hit(text)).toBe(true)
+  })
+
+  test.each([
+    ['楼栋门牌数字', '天河区某小区3栋2单元801室'],
+    ['合法高频词"同型号"', '和我家同型号的空调'],
+    ['普通描述', '空调开机不制冷,外机不转']
+  ])('%s -> 放行', (_label, text) => {
+    expect(hit(text)).toBe(false)
+  })
+
+  test('归一化只用于匹配:O→0 会改写英文词,结果不可落库', () => {
+    expect(normalizeContact('Good')).toBe('G00d')
+  })
+})

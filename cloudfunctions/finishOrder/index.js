@@ -5,7 +5,7 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-const { STATUS } = require('./biz')
+const { STATUS, orderCategories, categoryText } = require('./biz')
 
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
@@ -39,6 +39,8 @@ exports.main = async (event) => {
     const cfg = (await db.collection('config').doc('app').get()).data
     if (cfg.tplOrderFinish) {
       const order = (await db.collection('orders').doc(orderId).get()).data
+      // thing 限 20 字:品类用短名拼接(多选全选 11 字也不超);极端缺键的旧文档退回 categoryName 文本
+      const svcText = categoryText(orderCategories(order), true) || order.categoryName || '维修服务'
       await cloud.openapi.subscribeMessage.send({
         touser: order.userOpenid,
         templateId: cfg.tplOrderFinish,
@@ -46,7 +48,7 @@ exports.main = async (event) => {
         // 模板 1025"订单完成通知":订单编号/服务内容/温馨提示
         data: {
           character_string5: { value: order.orderNo },
-          thing6: { value: (order.categoryName || '维修服务') + '已完成' },
+          thing6: { value: svcText + '已完成' },
           thing16: { value: '请验收并确认,72小时未确认将自动完成' }
         }
       })

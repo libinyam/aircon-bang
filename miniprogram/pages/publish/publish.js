@@ -1,16 +1,23 @@
-const { CATEGORIES, SLOTS } = require('../../utils/constants')
+const { CATEGORIES, SLOTS, SCENES } = require('../../utils/constants')
 const { parseCity, isValidPhone, callFn, formatDate, imageExt } = require('../../utils/util')
 const config = require('../../utils/config')
 
 Page({
   data: {
-    categories: CATEGORIES,
+    // 磁贴选中态存 item.on(WXML 插值不能调方法,选中态用数据路径,见 test/wxmlExpr.test.js)
+    categories: CATEGORIES.map(c => Object.assign({}, c, { on: false })),
+    scenes: SCENES.map(s => ({
+      key: s.key,
+      name: s.name,
+      tip: s.key === 'home' ? '挂机 / 柜机等家用空调' : '中央空调 / 多联机 / 商铺机组'
+    })),
     symptoms: ['不制冷', '漏水', '异响', '不开机', '遥控失灵'],
     timeSlots: SLOTS.map(s => s.label),
     today: formatDate(new Date()),
     photos: [],          // 本地临时路径,提交时统一上传
     form: {
-      category: '', desc: '', address: '', addressDetail: '',
+      categories: [],    // 品类多选全集(维修+清洗+加氟…),提交原样上送
+      scene: 'home', desc: '', address: '', addressDetail: '',
       location: null, cityName: '', date: '', slot: '', slotKey: '',
       phone: '', contactName: ''
     },
@@ -18,7 +25,13 @@ Page({
   },
 
   async onLoad(options) {
-    if (options.category) this.setData({ 'form.category': options.category })
+    // 发布幂等标识:同一次表单会话固定,服务端以 hash(openid+requestId) 作订单 _id,
+    // 双击/超时重试返回原单而不是重复建单
+    this._requestId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
+    // 首页品类宫格带参进入:预选该品类(仍可继续多选)
+    if (options.category && CATEGORIES.some(c => c.key === options.category)) {
+      this.applyCategories([options.category])
+    }
     // 老用户回填手机号和称呼
     const g = await getApp().getUser()
     if (g.user) {
@@ -29,7 +42,21 @@ Page({
     }
   },
 
-  pickCategory(e) { this.setData({ 'form.category': e.currentTarget.dataset.key }) },
+  // 品类多选:同步 form.categories(键序)与磁贴选中态
+  applyCategories(cats) {
+    this.setData({
+      'form.categories': cats,
+      categories: this.data.categories.map(c => Object.assign({}, c, { on: cats.includes(c.key) }))
+    })
+  },
+
+  pickCategory(e) {
+    const key = e.currentTarget.dataset.key
+    const cur = this.data.form.categories
+    this.applyCategories(cur.includes(key) ? cur.filter(k => k !== key) : cur.concat(key))
+  },
+
+  pickScene(e) { this.setData({ 'form.scene': e.currentTarget.dataset.key }) },
 
   // 快捷故障标签:点一下追加进描述
   addSymptom(e) {
@@ -92,7 +119,8 @@ Page({
 
   async submit() {
     const f = this.data.form
-    if (!f.category) return wx.showToast({ title: '请选择服务类型', icon: 'none' })
+    if (!f.categories.length) return wx.showToast({ title: '请选择服务类型(可多选)', icon: 'none' })
+    if (!f.scene) return wx.showToast({ title: '请选择空调类型(家用/商用)', icon: 'none' })
     if (!f.desc || f.desc.trim().length < 5) return wx.showToast({ title: '请描述故障情况(至少5个字)', icon: 'none' })
     if (!f.location) return wx.showToast({ title: '请选择上门地址', icon: 'none' })
     if (!f.date || !f.slotKey) return wx.showToast({ title: '请选择期望上门时间', icon: 'none' })
@@ -142,7 +170,9 @@ Page({
       }
 
       const res = await callFn('publishOrder', {
-        category: f.category,
+        requestId: this._requestId,
+        categories: f.categories,
+        scene: f.scene,
         desc: f.desc,
         photos: fileIDs,
         location: f.location,

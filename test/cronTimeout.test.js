@@ -298,6 +298,7 @@ describe('窗口3:完结满180天隐私脱敏', () => {
   const oldOrder = (over = {}) => Object.assign({
     _id: 'p1', status: 'completed', publishedAt: daysAgo(181),
     userPhone: '13800138000', userName: '王先生', addressDetail: '3栋502',
+    address: '阳光花园', location: { type: 'Point', coordinates: [120.38, 36.07] },
     masterPhone: '13911112222', photos: ['cloud://a.jpg', 'cloud://b.jpg']
   }, over)
 
@@ -309,6 +310,8 @@ describe('窗口3:完结满180天隐私脱敏', () => {
     expect(o.userPhone).toBe('')
     expect(o.userName).toBe('')
     expect(o.addressDetail).toBe('')
+    expect(o.address).toBe('')              // 小区级地址与坐标同口径清除
+    expect(o.location).toBe(null)
     expect(o.masterPhone).toBe('')
     expect(o.photos).toEqual([])
     expect(o.privacyCleaned).toBe(true)
@@ -326,6 +329,7 @@ describe('窗口3:完结满180天隐私脱敏', () => {
     const { res } = await runCron(fx)
     expect(res.privacyCleaned).toBe(0)
     expect(fx.orders[0].userPhone).toBe('13800138000')
+    expect(fx.orders[0].address).toBe('阳光花园')   // 未到期不清理
     expect(fx.orders[1].userPhone).toBe('13800138000')
   })
 
@@ -629,5 +633,114 @@ describe('窗口4b:违规处置落库失败的补偿重放(评审:applyPending /
     const { res } = await runCron(fx)
     expect(res.mediaApplyRetried).toBe(0)
     expect(fx.media_checks[0].status).toBe('processing')
+  })
+})
+
+describe('批处理上限(fakeDb 查询语义修复后可测,)', () => {
+  test('自动确认单轮上限 100:101 条过期单只翻转 100 条,剩余下一轮', async () => {
+    const fx = {
+      orders: Array.from({ length: 101 }, (_, i) => ({
+        _id: 'o' + i, status: 'pending_confirm', finishedAt: hoursAgo(73),
+        masterOpenid: 'm-1', publishedAt: hoursAgo(80)
+      })),
+      masters: [{ _id: 'm-1', openid: 'm-1', stats: { done: 0 } }],
+      complaints: []
+    }
+    const { res } = await runCron(fx)
+    expect(res.autoConfirmed).toBe(100)
+    expect(fx.orders.filter(o => o.status === 'completed')).toHaveLength(100)
+    expect(fx.orders.filter(o => o.status === 'pending_confirm')).toHaveLength(1)
+    expect(fx.masters[0].stats.done).toBe(100)   // 补账阶段同上限,本轮翻转的单全部记上
+  })
+})
+
+describe('窗口2d:接单费对账补退', () => {
+  // 卡死扣款的标准形状:grab 流水在、退款流水不在、订单最终被别人接走(扣款-抢单-退回之间被杀)
+  const stuckFx = () => ({
+    orders: [{ _id: 'o1', status: 'accepted', masterOpenid: 'm-winner', publishedAt: daysAgo(1) }],
+    wallets: [{ _id: 'm-loser', balance: 48000 }],
+    wallet_logs: [{ _id: 'grab:o1:m-loser', openid: 'm-loser', type: 'grab', amount: -2000, orderId: 'o1', scene: 'home', createdAt: hoursAgo(1) }],
+    complaints: []
+  })
+
+  test('无退款的孤儿扣款:落待补流水并当轮补退,余额复原', async () => {
+    const fx = stuckFx()
+    const { res } = await runCron(fx)
+    expect(res.walletStuckFound).toBe(1)
+    expect(res.walletRefunded).toBe(1)
+    expect(fx.wallets[0].balance).toBe(50000)
+    expect(fx.wallet_logs.find(l => l._id === 'refund:grab:o1:m-loser'))
+      .toMatchObject({ type: 'refund', amount: 2000, status: 'done' })
+  })
+
+  test('重复运行幂等:只补退一次,不双退', async () => {
+    const fx = stuckFx()
+    await runCron(fx)
+    const { res } = await runCron(fx)
+    expect(res.walletStuckFound).toBe(0)   // 退款流水已存在,检测步跳过
+    expect(res.walletRefunded).toBe(0)     // 无 need_manual 待结算
+    expect(fx.wallets[0].balance).toBe(50000)
+  })
+
+  test('订单最终由本人接成(合法扣费):不退', async () => {
+    const fx = stuckFx()
+    fx.orders[0].masterOpenid = 'm-loser'
+    const { res } = await runCron(fx)
+    expect(res.walletStuckFound).toBe(0)
+    expect(fx.wallets[0].balance).toBe(48000)
+    expect(fx.wallet_logs).toHaveLength(1)
+  })
+
+  test('10分钟内的扣款不处理(给进行中的 grabOrder 留窗口)', async () => {
+    const fx = stuckFx()
+    fx.wallet_logs[0].createdAt = hoursAgo(1 / 60)   // 1 分钟前
+    const { res } = await runCron(fx)
+    expect(res.walletStuckFound).toBe(0)
+    expect(fx.wallets[0].balance).toBe(48000)
+  })
+
+  test('已有正常退款流水(无 status)的扣款:检测步跳过', async () => {
+    const fx = stuckFx()
+    fx.wallet_logs.push({ _id: 'refund:grab:o1:m-loser', openid: 'm-loser', type: 'refund', amount: 2000, orderId: 'o1', scene: 'home', createdAt: hoursAgo(1) })
+    const { res } = await runCron(fx)
+    expect(res.walletStuckFound).toBe(0)
+    expect(res.walletRefunded).toBe(0)
+    expect(fx.wallets[0].balance).toBe(48000)   // 正常流水不带 status,不进结算
+  })
+
+  test('grabOrder 落的 need_manual 待补流水:无需检测步直接补退', async () => {
+    const fx = stuckFx()
+    fx.wallet_logs[0] = {
+      _id: 'refund:grab:o2:m-loser', openid: 'm-loser', type: 'refund', amount: 30000,
+      orderId: 'o2', scene: 'commercial', status: 'need_manual', createdAt: hoursAgo(2)
+    }
+    const { res } = await runCron(fx)
+    expect(res.walletRefunded).toBe(1)
+    expect(fx.wallets[0].balance).toBe(48000 + 30000)
+    expect(fx.wallet_logs[0].status).toBe('done')
+  })
+
+  test('结算加钱失败:回滚认领下一轮重试,不丢钱', async () => {
+    const fx = stuckFx()
+    global.__failUpdate = (name) => name === 'wallets'
+    try {
+      const { res } = await runCron(fx)
+      expect(res.walletRefundFailed).toBe(1)
+      expect(res.walletRefunded).toBe(0)
+      expect(fx.wallet_logs.find(l => l._id === 'refund:grab:o1:m-loser').status).toBe('need_manual')
+    } finally {
+      delete global.__failUpdate
+    }
+    const { res } = await runCron(fx)   // 故障解除:下一轮补退成功
+    expect(res.walletRefunded).toBe(1)
+    expect(fx.wallets[0].balance).toBe(50000)
+  })
+
+  test('钱包文档不存在:关闭流水不重试,留日志人工核对', async () => {
+    const fx = stuckFx()
+    fx.wallets = []
+    const { res } = await runCron(fx)
+    expect(res.walletRefunded).toBe(0)
+    expect(fx.wallet_logs.find(l => l._id === 'refund:grab:o1:m-loser').status).toBe('done')
   })
 })

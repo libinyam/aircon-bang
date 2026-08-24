@@ -1,5 +1,6 @@
-const { formatDate, callFn, imageExt } = require('../../utils/util')
+const { callFn, imageExt, formatFee } = require('../../utils/util')
 const { categoryShort } = require('../../utils/constants')
+const listingsCache = require('../../utils/listingsCache')
 const config = require('../../utils/config')
 
 Page({
@@ -9,8 +10,7 @@ Page({
     isAdmin: false,
     loginError: false,
       avatarUrl: '',
-      memberValid: false,
-      memberExpireText: '',
+      balanceText: '--',   // 钱包余额(拉不到显示 --,不影响其他信息)
       avgStars: '',
       isApprovedMaster: false,
       roleTitle: '服务用户',
@@ -20,7 +20,8 @@ Page({
 
   async onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 3 })
+      // 中间位给了凸起发单钮(v4.1),我的顺移到 4
+      this.getTabBar().setData({ selected: 4 })
     }
     const g = await getApp().getUser(true)
     // 登录失败:显示重试,不展示"微信用户/非师傅/无管理入口"等错误结论
@@ -34,8 +35,6 @@ Page({
       // 入驻填的名字审核通过才作为展示名:审核前它只是未经核验的自称
       avatarText: (m && m.status === 'approved') ? (m.realName || '师')[0] : ((g.user && g.user.contactName) || '客')[0],
       catText: m ? (m.categories || []).map(categoryShort).join(' / ') : '',
-      memberValid: !!(m && m.memberExpireAt && new Date(m.memberExpireAt) > new Date()),
-      memberExpireText: m && m.memberExpireAt ? formatDate(m.memberExpireAt) : '',
       avgStars: m && m.stats && m.stats.reviewCount
         ? (m.stats.totalStars / m.stats.reviewCount).toFixed(1) : '',
       isApprovedMaster: !!(m && m.status === 'approved'),
@@ -44,7 +43,22 @@ Page({
       roleAction: m && m.status === 'approved' ? '进入接单大厅' : '申请师傅入驻'
     })
     this.refreshAvatar(m)
+    this.loadBalance(m)
+    // 有师傅档案才有「我的上架」入口:顺手后台预取列表(静默失败),
+    // 等用户点进去时缓存首屏已就绪,不用等 getListings 往返
+    if (m) listingsCache.prefetchMine()
   },
+
+  // 师傅钱包余额(接单费从钱包扣):拉不到只显示 --,不打扰其他信息
+  async loadBalance(m) {
+    if (!(m && m.status === 'approved')) return
+    try {
+      const res = await callFn('wallet', { action: 'get', page: 0 })
+      this.setData({ balanceText: formatFee(res.balance) })
+    } catch (e) { /* 已提示,余额保持 -- */ }
+  },
+
+  goWallet() { wx.navigateTo({ url: '/pages/wallet/wallet' }) },
 
   retryLogin() { this.onShow() },
   nav(e) { wx.navigateTo({ url: e.currentTarget.dataset.url }) },
@@ -93,7 +107,7 @@ Page({
         wx.showToast({ title: '头像上传失败,请检查网络后重试', icon: 'none' })
         throw e
       }
-      // 上传登记尽力而为,失败不阻断( 孤儿清理)
+      // 上传登记尽力而为,失败不阻断
       wx.cloud.callFunction({ name: 'registerUpload', data: { scene: 'avatar', fileIDs: [up.fileID] } }).catch(() => {})
       const res = await callFn('applyMaster', { action: 'updateAvatar', avatarPhoto: up.fileID })
       wx.showToast({ title: '头像已更新', icon: 'success' })
@@ -113,9 +127,13 @@ Page({
     wx.navigateTo({ url: '/pages/masterApply/masterApply' })
   },
   callService() { wx.makePhoneCall({ phoneNumber: config.SERVICE_PHONE }) },
-
+  // 封面必须显式给:留空则截当前页面,而本页顶部是头像+真名+评分+接单数
   onShareAppMessage() {
-    return { title: '空调坏了?发个单,同城师傅上门修', path: '/pages/index/index' }
+    return {
+      title: config.SHARE.home.title,
+      path: config.SHARE.home.path,
+      imageUrl: config.SHARE_COVER
+    }
   },
 
   copyOpenid() {

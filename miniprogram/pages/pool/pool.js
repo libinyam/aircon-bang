@@ -1,13 +1,14 @@
-const { formatDate, relTime, distanceKm, callFn, mergeById } = require('../../utils/util')
-const { categoryShort, slotShort } = require('../../utils/constants')
+const { formatDate, relTime, distanceKm, callFn, mergeById, formatFee } = require('../../utils/util')
+const { categoryShort, slotShort, sceneName, grabFee, ORDER_STATUS } = require('../../utils/constants')
 const config = require('../../utils/config')
 
 Page({
   data: {
     state: 'loading',      // loading / loginError / guest / pending / rejected / approved
     master: null,
-    memberValid: false,
-    memberExpireText: '',
+    balance: 0,            // 钱包余额(分),接单费从这里扣
+    balanceText: '0',
+    lowBalance: true,      // 不够接一单家用(¥20)时头部条转警示态
     serviceCity: '',
     orders: [],            // 原始数据(按最新排序)
     showOrders: [],        // 应用排序后的展示数据
@@ -20,12 +21,15 @@ Page({
     loadError: false,
     acting: false,
     showSubscribe: !!config.TPL_NEW_ORDER,
-    myLocation: null
+    myLocation: null,
+    statusMap: ORDER_STATUS,  // "我接的单"细条的状态点/文案
+    myActive: []              // 我接的进行中订单(最多3条),接完单在大厅第一眼就能找回
   },
 
   onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 2 })
+      // 中间位给了凸起发单钮(v4.1),接单大厅顺移到 3
+      this.getTabBar().setData({ selected: 3 })
     }
     this.refresh()
   },
@@ -38,35 +42,60 @@ Page({
   },
 
   async refresh() {
-    const g = await getApp().getUser(true)
-    // 登录失败不能当游客处理,否则已入驻师傅会被误导重新入驻
-    if (g.loginError) return this.setData({ state: 'loginError' })
-    const m = g.master
-    if (!m) return this.setData({ state: 'guest' })
-    if (m.status === 'pending') return this.setData({ state: 'pending', master: m })
-    if (m.status === 'rejected') return this.setData({ state: 'rejected', master: m })
+    // 先用缓存身份立即上屏,进页零等待:点击 tab 时不再被 login 云调用阻塞(旧版在
+    // tabBar 里 await 强刷,点接单大厅先"死"几百毫秒)。角色真实性由两层兜底:
+    // 服务端 getOrders.pool 复检 approved;客户端缓存未过 TTL 前角色偏差最多 60s
+    const applyState = (g) => {
+      if (g.loginError) { this.setData({ state: 'loginError' }); return false }
+      const m = g.master
+      if (!m) { this.setData({ state: 'guest' }); return false }
+      if (m.status === 'pending') { this.setData({ state: 'pending', master: m }); return false }
+      if (m.status === 'rejected') { this.setData({ state: 'rejected', master: m }); return false }
+      const catTabs = [{ key: '', name: '全部' }].concat(
+        (m.categories || []).map(k => ({ key: k, name: categoryShort(k) }))
+      )
+      this.setData({ state: 'approved', master: m, catTabs })
+      return true
+    }
+    const g = await getApp().getUser()
+    if (applyState(g)) { this.loadMyActive(); return this.loadPool(0) }
 
-    const catTabs = [{ key: '', name: '全部' }].concat(
-      (m.categories || []).map(k => ({ key: k, name: categoryShort(k) }))
-    )
-    this.setData({
-      state: 'approved',
-      master: m,
-      catTabs,
-      memberExpireText: m.memberExpireAt ? formatDate(m.memberExpireAt) : ''
-    })
-    await this.loadPool(0)
+    // 缓存说不是认证师傅:后台强刷一次收敛角色。
+    // 结果有变才重渲染;纯游客/被驳回也照此多一次调用,与旧版 tabBar 拦截的成本一致。
+    // loginError 单独作一种"角色":强刷成功后即使角色字面未变(如本就是 approved)也要重渲染,
+    // 否则会卡在错误态
+    const roleOf = (x) => (!x.master ? 'guest' : x.master.status)
+    const before = g.loginError ? 'loginError' : roleOf(g)
+    const fresh = await getApp().getUser(true)
+    if (!fresh.loginError && roleOf(fresh) !== before && applyState(fresh)) {
+      if (typeof this.getTabBar === 'function' && this.getTabBar() && this.getTabBar().syncRole) {
+        this.getTabBar().syncRole()   // tab 文案从「师傅入驻」纠正为「接单大厅」
+      }
+      this.loadMyActive()
+      this.loadPool(0)
+    }
+  },
+
+  // 我接的进行中订单:大厅置顶细条。辅助信息,静默失败留日志即可(与首页 loadActiveOrders 同口径)
+  async loadMyActive() {
+    const res = await callFn('getOrders', { action: 'masterList', activeOnly: true })
+      .catch(e => { console.error('loadMyActive failed', e); return null })
+    if (res) this.setData({ myActive: res.data })
   },
 
   async loadPool(page = 0) {
     // 代次控制:刷新/切品类会作废在途的旧响应,晚到的旧分页不能覆盖新列表
     const gen = this._gen = (this._gen || 0) + 1
     this._loading = true
-    if (!this.data.myLocation) {
-      try {
-        const loc = await wx.getLocation({ type: 'gcj02' })
-        this.setData({ myLocation: { latitude: loc.latitude, longitude: loc.longitude } })
-      } catch (e) { /* 拒绝定位则不显示距离,距离排序退化为最新排序 */ }
+    // 定位与列表并行:定位权限弹窗/拒授不再串行拖住列表首屏;距离晚到后 recalcDistances 补算。
+    // 拒绝过定位的会话内不再重试(myLocation 恒空曾导致每次进页都重新发起定位)
+    if (!this.data.myLocation && !this._locDenied) {
+      wx.getLocation({ type: 'gcj02' })
+        .then(loc => {
+          this.setData({ myLocation: { latitude: loc.latitude, longitude: loc.longitude } })
+          this.recalcDistances()
+        })
+        .catch(() => { this._locDenied = true })
     }
 
     try {
@@ -90,6 +119,8 @@ Page({
           distanceNum,
           near: distanceNum > 0 && distanceNum < 3,
           urgentText,
+          sceneLabel: sceneName(o.scene) || '家用', // 老订单无 scene 按家用(与 grabOrder 口径一致)
+          feeText: formatFee(grabFee(o.scene)),
           pubText: relTime(o.publishedAt) + '发布'
         })
       })
@@ -104,7 +135,9 @@ Page({
         orders,
         page,
         noMore: !res.hasMore,
-        memberValid: res.memberValid,
+        balance: res.walletBalance,
+        balanceText: formatFee(res.walletBalance),
+        lowBalance: res.walletBalance < 2000,
         serviceCity: res.serviceCity,
         loaded: true,
         loadError: false
@@ -125,6 +158,23 @@ Page({
     this.setData({ showOrders: list })
   },
 
+  // 定位晚到:补算当前列表的距离/近单标记,按现有排序键重排(与 loadPool 的映射同口径)
+  recalcDistances() {
+    if (this.data.state !== 'approved' || !this.data.orders.length) return
+    const my = this.data.myLocation
+    if (!my) return
+    const orders = this.data.orders.map(o => {
+      let distanceNum = 0
+      if (o.location && o.location.coordinates) {
+        const [lng, lat] = o.location.coordinates
+        distanceNum = Number(distanceKm(my.latitude, my.longitude, lat, lng).toFixed(1))
+      }
+      return Object.assign(o, { distanceNum, near: distanceNum > 0 && distanceNum < 3 })
+    })
+    this.setData({ orders })
+    this.applySort()
+  },
+
   switchCat(e) {
     const key = e.currentTarget.dataset.key
     if (key === this.data.activeCat) return
@@ -138,11 +188,16 @@ Page({
 
   retryLoad() { this.loadPool(0) },
   goApply() { wx.navigateTo({ url: '/pages/masterApply/masterApply' }) },
+  goWallet() { wx.navigateTo({ url: '/pages/wallet/wallet' }) },
   goDetail(e) { wx.navigateTo({ url: `/pages/orderDetail/orderDetail?id=${e.currentTarget.dataset.id}` }) },
   callService() { wx.makePhoneCall({ phoneNumber: config.SERVICE_PHONE }) },
-
+  // 封面必须显式给:留空则截当前页面,而订单池条目带他人地址与描述
   onShareAppMessage() {
-    return { title: '空调师傅看过来:同城接单平台,不抽单佣金', path: '/pages/pool/pool' }
+    return {
+      title: config.SHARE.recruit.title,
+      path: config.SHARE.recruit.path,
+      imageUrl: config.SHARE_COVER
+    }
   },
 
   subscribeNewOrder() {
@@ -158,19 +213,54 @@ Page({
 
   async grab(e) {
     const orderId = e.currentTarget.dataset.id
+    const order = this.data.orders.find(o => o._id === orderId) || {}
+    const sceneText = sceneName(order.scene) || '家用'
+    const feeText = formatFee(grabFee(order.scene))
+    // 扣费动作先确认再下单:商用单 ¥300 不是小数,误触代价高
+    const confirmed = await new Promise(resolve => {
+      wx.showModal({
+        title: `确认接${sceneText}单`,
+        content: `接单将从钱包扣除服务费 ¥${feeText}(当前余额 ¥${this.data.balanceText}),抢不到自动退回。`,
+        confirmText: '确认接单',
+        cancelText: '再想想',
+        success: r => resolve(!!r.confirm),
+        fail: () => resolve(false)
+      })
+    })
+    if (!confirmed) return
+
     this.setData({ acting: true })
     try {
       const res = await callFn('grabOrder', { orderId })
       wx.showModal({
         title: '抢单成功',
-        content: `请尽快联系客户${res.userName ? ' ' + res.userName : ''}:${res.userPhone}`,
+        content: `已扣接单费 ¥${formatFee(res.feeCharged)}。请尽快联系客户${res.userName ? ' ' + res.userName : ''}:${res.userPhone}`,
         confirmText: '拨打电话',
-        cancelText: '稍后再打',
-        success: r => { if (r.confirm) wx.makePhoneCall({ phoneNumber: res.userPhone }) }
+        cancelText: '查看订单',
+        success: r => {
+          if (r.confirm) {
+            wx.makePhoneCall({ phoneNumber: res.userPhone })
+          } else {
+            // 接走的单会立刻从大厅消失,这里给直达详情的出口,不必绕 我的→我的接单
+            wx.navigateTo({ url: `/pages/orderDetail/orderDetail?id=${orderId}` })
+          }
+        }
       })
-    } catch (e) { /* 已提示(手慢了等) */ } finally {
+    } catch (err) {
+      // callFn 已 toast;余额不足再补一步引导去充值
+      if (err && err.msg && err.msg.includes('余额不足')) {
+        wx.showModal({
+          title: '余额不足',
+          content: `接${sceneText}单需 ¥${feeText},当前余额 ¥${this.data.balanceText},充值后再来接单。`,
+          confirmText: '去充值',
+          cancelText: '取消',
+          success: r => { if (r.confirm) wx.navigateTo({ url: '/pages/wallet/wallet' }) }
+        })
+      }
+    } finally {
       this.setData({ acting: false })
-      this.loadPool(0)
+      this.loadMyActive()  // 新接的单要出现在"我接的单"里
+      this.loadPool(0)     // 刷新列表同时带回最新余额
     }
   }
 })

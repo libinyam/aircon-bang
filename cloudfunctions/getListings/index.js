@@ -120,7 +120,7 @@ const actions = {
     const sellerVerified = !!(seller && seller.status === 'approved')
     const sellerStats = seller && seller.stats
       ? { done: seller.stats.done, reviewCount: seller.stats.reviewCount, totalStars: seller.stats.totalStars }
-      : null
+ : null
 
     if (isOwner) {
       const data = await withTempPhotoURLs(pick(listing, DETAIL_OWNER_FIELDS))

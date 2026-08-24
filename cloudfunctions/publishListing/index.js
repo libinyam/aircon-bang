@@ -1,5 +1,5 @@
 // 师傅发布空调商品(买空调频道):校验 -> 内容安全 -> 上架
-// 交易形态是信息撮合:平台不代收货款,买家经 getListings.contact 按次取号电话联系(项目红线)
+// 交易形态是信息撮合:平台不代收货款,买家经 getListings.contact 按次取号电话联系
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
@@ -9,6 +9,8 @@ const crypto = require('crypto')
 const { LISTING_STATUS, LISTING_ENUMS, normalizeCity } = require('./biz')
 const { makeBizNo, nextBizNo } = require('./bizNo')
 const textSafe = require('./textSafe')(cloud)
+// 联系方式拦截已上提 _shared/textSafe 母本:订单侧 publishOrder 同用一套正则/归一化
+const { CONTACT_RE, normalizeContact } = require('./textSafe')
 const verifyImages = require('./mediaFile')(cloud)
 const log = require('./logger')('publishListing')
 
@@ -23,10 +25,6 @@ const makeListingNo = (nowMs, rand) => makeBizNo('GD', nowMs, rand)
 function makeListingId(openid, requestId) {
   return crypto.createHash('sha256').update(`${openid}:${requestId}`).digest('hex').slice(0, 32)
 }
-
-// 商品文案里不允许留联系方式:电话必须走 contact 接口按次下发+限频,
-// 标题/描述里贴手机号/微信号/网址会把电话分层设计整个绕掉
-const CONTACT_RE = /1[3-9]\d{9}|https?:\/\/|www\.|(?:微信|威信|薇信|wechat|vx|wx)\s*[:：号]/i
 
 // 在架上限:只计 on_sale(与 updateListing.onShelf 同口径,防"先囤后架"绕限)
 const MAX_ON_SALE = 20
@@ -65,7 +63,10 @@ exports.main = async (event) => {
   if (desc.length > 500) return bad('描述太长了')
   if (typeof brand !== 'string' || !brand.trim()) return bad('请填写品牌')
   if (brand.length > 12) return bad('品牌名太长了')
-  if (CONTACT_RE.test(`${title} ${brand} ${desc}`)) return bad('请勿在商品信息中留联系方式,买家会通过平台电话联系您')
+  // 逐字段归一化匹配:字段先拼接再去空格可能把两个短数字粘成假手机号,分开学
+  if ([title, brand, desc].some(t => CONTACT_RE.test(normalizeContact(t)))) {
+    return bad('请勿在商品信息中留联系方式,买家会通过平台电话联系您')
+  }
   if (!Number.isInteger(priceYuan) || priceYuan < 1 || priceYuan > 99999) return bad('价格需为 1-99999 的整数(元)')
 
   if (!Array.isArray(photos) || photos.length < 1) return bad('请至少上传1张商品照片')
@@ -175,4 +176,4 @@ exports.main = async (event) => {
 }
 
 // 仅供离线单测使用,云端运行不受影响
-exports._internals = { makeListingNo, makeListingId, CONTACT_RE, MAX_ON_SALE }
+exports._internals = { makeListingNo, makeListingId, CONTACT_RE, normalizeContact, MAX_ON_SALE }

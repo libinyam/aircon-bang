@@ -92,19 +92,56 @@ describe('detail 权限四分支', () => {
   })
 })
 
-describe('viewer 会员状态随详情下发', () => {
-  test('会员有效:memberValid true;过期/未开通:false(详情仍可看)', async () => {
-    // 固定 MASTERS 里 master-2 无 memberExpireAt -> false
+describe('detail 围观资格:品类多选任一交集', () => {
+  // 多选单:首选项镜像 category=repair,全集 categories=[repair,clean]
+  const multiOrder = () => {
+    const o = JSON.parse(JSON.stringify(ORDER_PUBLISHED))
+    o.categories = ['repair', 'clean']
+    return o
+  }
+  async function callDetailAs(openid, order) {
+    jest.resetModules()
+    global.__mockDb = fakeDb({
+      orders: [order],
+      masters: [
+        { _id: 'mc', openid: 'master-clean', status: 'approved', serviceCity: '广州市', categories: ['clean'], stats: { done: 0, reviewCount: 0, totalStars: 0 } },
+        { _id: 'mm', openid: 'master-move', status: 'approved', serviceCity: '广州市', categories: ['move'], stats: { done: 0, reviewCount: 0, totalStars: 0 } }
+      ],
+      reviews: []
+    })
+    global.__mockCtx = { OPENID: openid }
+    const { main } = require('../cloudfunctions/getOrders/index')
+    const res = await main({ action: 'detail', orderId: order._id })
+    delete global.__mockDb
+    delete global.__mockCtx
+    return res
+  }
+
+  test('只会清洗的师傅可围观 [维修,清洗] 的单;能力无交集([移机])拒绝', async () => {
+    const r1 = await callDetailAs('master-clean', multiOrder())
+    expect(r1.ok).toBe(true)
+    expect(r1.role).toBe('viewer')
+
+    const r2 = await callDetailAs('master-move', multiOrder())
+    expect(r2.ok).toBe(false)
+    expect(r2.data).toBeUndefined()
+  })
+})
+
+describe('viewer 钱包余额随详情下发(接单费制,原  会员口径)', () => {
+  test('无钱包文档:walletBalance 0(详情仍可看,前端引导充值)', async () => {
     const r1 = await callDetail('master-2', 'o-published')
     expect(r1.ok).toBe(true)
-    expect(r1.memberValid).toBe(false)
+    expect(r1.walletBalance).toBe(0)
+  })
 
-    // 有效会员单独构造
+  test('有钱包:下发真实余额', async () => {
     jest.resetModules()
     const fx = {
       orders: [JSON.parse(JSON.stringify(ORDER_PUBLISHED))],
-      masters: [{ _id: 'm9', openid: 'master-9', status: 'approved', serviceCity: '广州市', categories: ['repair'], memberExpireAt: new Date(Date.now() + 3600 * 1000) }],
-      reviews: []
+      masters: [{ _id: 'm9', openid: 'master-9', status: 'approved', serviceCity: '广州市', categories: ['repair'] }],
+      reviews: [],
+      wallets: [{ _id: 'master-9', balance: 30000 }]
     }
     global.__mockDb = fakeDb(fx)
     global.__mockCtx = { OPENID: 'master-9' }
@@ -112,12 +149,27 @@ describe('viewer 会员状态随详情下发', () => {
     const r2 = await main({ action: 'detail', orderId: 'o-published' })
     delete global.__mockDb
     delete global.__mockCtx
-    expect(r2.memberValid).toBe(true)
+    expect(r2.walletBalance).toBe(30000)
   })
 
-  test('订单双方视角不下发 memberValid(前端视为不受限)', async () => {
+  test('订单双方视角不下发 walletBalance(前端视为不受限)', async () => {
     const r = await callDetail('user-1', 'o-accepted')
-    expect(r.memberValid).toBeUndefined()
+    expect(r.walletBalance).toBeUndefined()
+  })
+
+  test('围观脱敏版放行 scene/sceneName(前端显示家用/商用与接单费)', async () => {
+    jest.resetModules()
+    const order = JSON.parse(JSON.stringify(ORDER_PUBLISHED))
+    order.scene = 'commercial'
+    order.sceneName = '商用'
+    global.__mockDb = fakeDb({ orders: [order], masters: JSON.parse(JSON.stringify(MASTERS)), reviews: [] })
+    global.__mockCtx = { OPENID: 'master-2' }
+    const { main } = require('../cloudfunctions/getOrders/index')
+    const r = await main({ action: 'detail', orderId: 'o-published' })
+    delete global.__mockDb
+    delete global.__mockCtx
+    expect(r.data.scene).toBe('commercial')
+    expect(r.data.sceneName).toBe('商用')
   })
 })
 
@@ -158,7 +210,8 @@ describe('detail 并行取评价与师傅口碑', () => {
     global.__mockDb = fakeDb({
       orders: [order],
       masters: JSON.parse(JSON.stringify(MASTERS)),
-      reviews: [{ _id: 'o-accepted', orderId: 'o-accepted', stars: 5, content: '很给力' }]
+      // 落库形状含双方 openid(submitReview 写入):响应必须剔除
+      reviews: [{ _id: 'o-accepted', orderId: 'o-accepted', userOpenid: 'user-1', masterOpenid: 'master-1', stars: 5, content: '很给力' }]
     })
     global.__mockCtx = { OPENID: 'user-1' }
     const { main } = require('../cloudfunctions/getOrders/index')
@@ -169,5 +222,102 @@ describe('detail 并行取评价与师傅口碑', () => {
     expect(r.role).toBe('user')
     expect(r.review).toEqual({ _id: 'o-accepted', orderId: 'o-accepted', stars: 5, content: '很给力' })
     expect(r.masterStats).toEqual({ done: 8, reviewCount: 5, totalStars: 24 })
+  })
+})
+
+describe('masterStats 头像临时链接(信任卡 v4.1)', () => {
+  afterEach(() => { delete global.__mockTempFileURL })
+
+  function callWithMaster(master) {
+    jest.resetModules()
+    global.__mockDb = fakeDb({
+      orders: [JSON.parse(JSON.stringify(ORDER_ACCEPTED))],
+      masters: [master],
+      reviews: []
+    })
+    global.__mockCtx = { OPENID: 'user-1' }
+    const { main } = require('../cloudfunctions/getOrders/index')
+    return main({ action: 'detail', orderId: 'o-accepted' }).then(r => {
+      delete global.__mockDb
+      delete global.__mockCtx
+      return r
+    })
+  }
+
+  test('有头像:换临时链接随口碑下发', async () => {
+    const m = JSON.parse(JSON.stringify(MASTERS[0]))
+    m.avatarPhoto = 'cloud://x/avatars/master-1/a.jpg'
+    const r = await callWithMaster(m)
+    expect(r.masterStats.avatar).toBe('https://tmp/cloud://x/avatars/master-1/a.jpg')
+    expect(r.masterStats.done).toBe(8)
+  })
+
+  test('无头像:不带 avatar 字段(前端姓氏首字兜底)', async () => {
+    const r = await callWithMaster(JSON.parse(JSON.stringify(MASTERS[0])))
+    expect(r.masterStats).not.toHaveProperty('avatar')
+  })
+
+  test('头像换链抛错:不阻塞详情,口碑照常下发', async () => {
+    const m = JSON.parse(JSON.stringify(MASTERS[0]))
+    m.avatarPhoto = 'cloud://x/avatars/master-1/a.jpg'
+    global.__mockTempFileURL = () => { throw new Error('storage timeout') }
+    const r = await callWithMaster(m)
+    expect(r.ok).toBe(true)
+    expect(r.masterStats.done).toBe(8)
+    expect(r.masterStats).not.toHaveProperty('avatar')
+  })
+})
+
+describe('双方视角不下发 openid', () => {
+  // 双方互不需要对方 openid(前端零引用已核);手机号/门牌等联系字段照常
+  async function callGet(openid, event) {
+    jest.resetModules()
+    global.__mockDb = fakeDb({
+      orders: [JSON.parse(JSON.stringify(ORDER_ACCEPTED)), JSON.parse(JSON.stringify(ORDER_PUBLISHED))],
+      masters: JSON.parse(JSON.stringify(MASTERS)),
+      reviews: []
+    })
+    global.__mockCtx = { OPENID: openid }
+    const { main } = require('../cloudfunctions/getOrders/index')
+    const res = await main(event)
+    delete global.__mockDb
+    delete global.__mockCtx
+    return res
+  }
+
+  test('userList:联系字段完整,但两侧 openid 都不下发', async () => {
+    const r = await callGet('user-1', { action: 'userList' })
+    expect(r.ok).toBe(true)
+    expect(r.data.length).toBeGreaterThan(0)
+    r.data.forEach(o => {
+      expect(o.userOpenid).toBeUndefined()
+      expect(o.masterOpenid).toBeUndefined()
+      expect(o.userPhone).toBe('13800138000')
+      expect(o.addressDetail).toBeTruthy()
+    })
+  })
+
+  test('masterList:同口径,用户电话照常(接单后可见)', async () => {
+    const r = await callGet('master-1', { action: 'masterList' })
+    expect(r.ok).toBe(true)
+    r.data.forEach(o => {
+      expect(o.userOpenid).toBeUndefined()
+      expect(o.masterOpenid).toBeUndefined()
+      expect(o.userPhone).toBe('13800138000')
+    })
+  })
+
+  test('detail 双方分支:owner/master 都拿不到双方 openid,业务字段不受影响', async () => {
+    const r1 = await callGet('user-1', { action: 'detail', orderId: 'o-accepted' })
+    expect(r1.role).toBe('user')
+    expect(r1.data.userOpenid).toBeUndefined()
+    expect(r1.data.masterOpenid).toBeUndefined()
+    expect(r1.data.masterName).toBe('李师傅')     // 对方展示信息照常
+
+    const r2 = await callGet('master-1', { action: 'detail', orderId: 'o-accepted' })
+    expect(r2.role).toBe('master')
+    expect(r2.data.userOpenid).toBeUndefined()
+    expect(r2.data.masterOpenid).toBeUndefined()
+    expect(r2.data.userPhone).toBe('13800138000') // 师傅接单后可见用户电话
   })
 })

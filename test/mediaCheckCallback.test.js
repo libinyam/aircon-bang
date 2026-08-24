@@ -6,14 +6,17 @@ const { LISTING_STATUS, STATUS } = require('../cloudfunctions/_shared/biz')
 
 const fid = (ns, o, n) => `cloud://env.x/${ns}/${o}/${n}.jpg`
 
-async function callCb(event, fx) {
+async function callCb(event, fx, { openid } = {}) {
   jest.resetModules()
   global.__mockDb = fakeDb(fx)
+  // 来源上下文:默认模拟微信消息推送(无 OPENID);openid 参数模拟客户端直调
+  global.__mockCtx = openid ? { OPENID: openid } : {}
   global.__deletedFiles = []
   const { main } = require('../cloudfunctions/mediaCheckCallback/index')
   const res = await main(event)
   const deleted = global.__deletedFiles
   delete global.__mockDb
+  delete global.__mockCtx
   delete global.__deletedFiles
   delete global.__failUpdate
   delete global.__mockDeleteFile
@@ -21,6 +24,20 @@ async function callCb(event, fx) {
 }
 
 const riskyEvent = (traceId) => ({ trace_id: traceId, result: { suggest: 'risky', label: 20001 } })
+
+describe('来源校验', () => {
+  test('客户端直调(带 OPENID):拒绝,伪造 risky 也不能摘图删文件', async () => {
+    const fx = {
+      media_checks: [{ _id: 'c1', traceId: 't1', type: 'listing', targetId: 'l1', fileID: fid('listings', 'm1', 'a'), status: 'pending' }],
+      listings: [{ _id: 'l1', status: LISTING_STATUS.ON_SALE, photos: [fid('listings', 'm1', 'a')] }]
+    }
+    const { res, deleted } = await callCb(riskyEvent('t1'), fx, { openid: 'attacker' })
+    expect(res).toContain('not from message push')
+    expect(fx.media_checks[0].status).toBe('pending')
+    expect(fx.listings[0].photos).toHaveLength(1)
+    expect(deleted).toEqual([])
+  })
+})
 
 describe('状态闸与 pass 路径', () => {
   test('pass:认领后直接落终态,不动业务文档不删文件', async () => {

@@ -39,7 +39,7 @@
     <view class="goods-grid" wx:if="{{listings.length}}">
       <view class="goods-card" hover-class="hv-press" wx:for="{{listings}}" wx:key="_id"
             bindtap="goDetail" data-id="{{item._id}}">
-        <image class="goods-cover" src="{{item.cover}}" mode="aspectFill" wx:if="{{item.cover}}" />
+        <image class="goods-cover" src="{{item.cover}}" mode="aspectFill" lazy-load wx:if="{{item.cover}}" />
         <view class="goods-cover mk-nocover" wx:else><view class="ic ic-tab-shop mk-nocover-ic"></view></view>
         <view class="goods-body">
           <view class="goods-title">{{item.title}}</view>

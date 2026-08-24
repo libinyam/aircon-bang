@@ -1,4 +1,9 @@
 .oi-title { font-size: 32rpx; font-weight: 600; line-height: 1.3; color: #171C24; }
+/* 长类目名单行截断,场景 tag 不被挤换行(v4 文字换行修复) */
+.oi-title-scene { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
+.oi-cat { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oi-title-scene .tag { font-size: 20rpx; padding: 4rpx 12rpx; border-radius: 10rpx; flex-shrink: 0; }
+.oi-tags { flex-shrink: 0; }
 .desc-line {
   color: #454F5E;
   font-size: 26rpx;

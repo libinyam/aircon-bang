@@ -16,7 +16,8 @@ Page({
   data: {
     categories: CATEGORIES,
     statusMap: ORDER_STATUS,
-    activeOrders: [],
+    activeOrders: [],      // 我发的进行中订单
+    masterOrders: [],      // 我接的进行中订单(认证师傅才有)
     isApprovedMaster: false,
     masterEntryText: '我要接单',
     masterJoinText: '去入驻',
@@ -78,11 +79,25 @@ Page({
   },
 
   async loadActiveOrders() {
-    await getApp().getUser()
-    // 静默失败但留日志:首页进行中订单是辅助信息,不打扰用户
-    const res = await callFn('getOrders', { action: 'userList', activeOnly: true })
-      .catch(e => { console.error('loadActiveOrders failed', e); return null })
-    if (res) this.setData({ activeOrders: res.data })
+    const g = await getApp().getUser()
+    // 认证师傅另查"我接的单":首页也一览接的单,不必绕 我的→我的接单。两个列表并行,互不拖累首屏
+    const jobs = [
+      callFn('getOrders', { action: 'userList', activeOnly: true })
+        .catch(e => { console.error('loadActiveOrders failed', e); return null })
+    ]
+    if (g.master && g.master.status === 'approved') {
+      jobs.push(
+        callFn('getOrders', { action: 'masterList', activeOnly: true })
+          .catch(e => { console.error('loadMasterOrders failed', e); return null })
+      )
+    }
+    const [pub, mine] = await Promise.all(jobs)
+    // 静默失败但留日志:首页进行中订单是辅助信息,不打扰用户;
+    // mine===undefined 表示本次身份不是师傅(未发起查询),此时清空,防止角色变化后残留旧数据
+    this.setData({
+      activeOrders: pub ? pub.data : this.data.activeOrders,
+      masterOrders: mine === undefined ? [] : (mine ? mine.data : this.data.masterOrders)
+    })
   },
 
   goPublish(e) {
@@ -106,8 +121,11 @@ Page({
   goMarket() {
     wx.switchTab({ url: '/pages/market/market' })
   },
-
   onShareAppMessage() {
-    return { title: '空调坏了?发个单,同城师傅上门修', path: '/pages/index/index' }
+    return {
+      title: config.SHARE.home.title,
+      path: config.SHARE.home.path,
+      imageUrl: config.SHARE_COVER
+    }
   }
 })

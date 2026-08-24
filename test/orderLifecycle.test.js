@@ -1,4 +1,4 @@
-// 订单生命周期行为测试:finish(含撤销 #26)/ confirm(含驳回通知)/ cancel
+// 订单生命周期行为测试:finish(含撤销)/ confirm(含驳回通知)/ cancel
 const { fakeDb } = require('./stubs/fakeDb')
 
 function order(over = {}) {
