@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空调帮 · 在线可玩演示 —— 同城垂直空调维修撮合平台</title>
+<meta name="description" content="空调帮小程序在线演示:左侧顾客端发单,右侧师傅端抢单,双机实时联动,含并发抢单一致性演示。">
+<style>
+/* ============ 设计 token(与小程序 app.wxss 注释一一对应) ============ */
+:root {
+  --brand: #F25B15;
+  --brand-deep: #C9490C;
+  --brand-tint: #FDEBE0;
+  --brand-dis: #F7C2A6;
+  --ink: #171C24;
+  --ink-surface: #1E2530;
+  --n700: #454F5E;
+  --n500: #667180;
+  --n300: #A9B1BD;
+  --n250: #D5DAE1;
+  --n200: #ECEEF2;
+  --bg: #FAF8F5;
+  --danger: #CE3F36;
+  --danger-tint: #FBECEB;
+  --danger-bd: #F3CBC8;
+  --success: #0E9868;
+  --master-blue: #2563EB;
+  --st-published: #E0761A;
+  --st-accepted: #3D6FD1;
+  --st-pending: #7A5AD8;
+  --st-completed: #0E9868;
+  --st-cancelled: #667180;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: #F1EDE7; }
+body {
+  font-family: -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Source Han Sans SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  line-height: 1.6;
+  font-size: 14px;
+}
+button { font-family: inherit; cursor: pointer; }
+a { color: var(--brand-deep); }
+
+/* ============ 站点头部 ============ */
+.site-head { max-width: 1200px; margin: 0 auto; padding: 28px 24px 10px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.site-brand { display: flex; align-items: center; gap: 14px; }
+.site-logo { width: 46px; height: 46px; border-radius: 12px; background: var(--brand); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(242,91,21,.28); }
+.site-logo svg { width: 26px; height: 26px; }
+.site-title { font-size: 22px; font-weight: 700; line-height: 1.3; }
+.site-sub { font-size: 13px; color: var(--n500); }
+.site-actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+.site-btn {
+  border: none; border-radius: 999px; padding: 10px 20px; font-size: 14px; font-weight: 600;
+  background: var(--brand); color: #fff; transition: transform .18s cubic-bezier(.2,.8,.25,1), opacity .18s;
+  display: flex; align-items: center; gap: 6px;
+}
+.site-btn:active { transform: scale(.97); opacity: .9; }
+.site-btn--dark { background: var(--ink-surface); }
+.site-btn--ghost { background: #fff; color: var(--n700); border: 1px solid var(--n200); }
+
+.guide {
+  max-width: 1200px; margin: 14px auto 6px; padding: 14px 20px;
+  background: #FFF9F2; border: 1px solid rgba(242,91,21,.16); border-radius: 14px;
+  font-size: 13.5px; color: var(--n700);
+}
+.guide b { color: var(--brand-deep); }
+.guide .step { display: inline-flex; align-items: center; gap: 6px; margin-right: 18px; white-space: nowrap; }
+.guide .num { width: 18px; height: 18px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ============ 舞台:双机并排 ============ */
+.stage { max-width: 1200px; margin: 18px auto 40px; padding: 0 24px; display: flex; justify-content: center; align-items: flex-start; gap: 34px; }
+.phone-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.phone-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--n700); }
+.phone-label .p-dot { width: 10px; height: 10px; border-radius: 50%; }
+.link-col { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 300px; }
+.link-badge { writing-mode: vertical-lr; letter-spacing: 6px; font-size: 12px; color: var(--n300); border-left: 1px dashed var(--n250); border-right: 1px dashed var(--n250); padding: 8px 2px; }
+
+/* 手机壳 */
+.phone {
+  width: 375px; height: 724px; background: var(--bg); border-radius: 34px; overflow: hidden;
+  border: 9px solid #1E2530; box-shadow: 0 24px 60px rgba(23,28,36,.22), 0 4px 12px rgba(23,28,36,.12);
+  position: relative; display: flex; flex-direction: column;
+}
+.phone .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 130px; height: 22px; background: #1E2530; border-radius: 0 0 16px 16px; z-index: 60; }
+.nav {
+  flex-shrink: 0; height: 56px; background: #FAF0E7; display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 8px; font-size: 16px; font-weight: 600; color: var(--ink); position: relative; z-index: 5;
+}
+.nav .back { position: absolute; left: 12px; bottom: 4px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.nav .back:active { background: rgba(23,28,36,.06); }
+.screen { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-width: none; background: var(--bg); }
+.screen::-webkit-scrollbar { display: none; }
+.screen-pad { padding-bottom: 130px; }
+
+/* ============ 通用组件(源自 app.wxss,rpx÷2=px) ============ */
+.card { background: #fff; border: 1px solid rgba(23,28,36,.05); box-shadow: 0 2px 10px -1px rgba(23,28,36,.04), 0 .5px 2px rgba(23,28,36,.02); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.card-title { font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--ink); margin-bottom: 10px; }
+.btn-cta { background: var(--brand); color: #fff; border-radius: 999px; font-size: 16px; font-weight: 600; height: 48px; line-height: 48px; padding: 0; text-align: center; border: none; width: 100%; transition: transform .18s cubic-bezier(.2,.8,.25,1), opacity .18s; }
+.btn-cta:active { transform: scale(.975); opacity: .9; }
+.btn-cta-sm { height: 36px; line-height: 36px; font-size: 14px; padding: 0 24px; width: auto; }
+.btn-primary { background: var(--brand); color: #fff; border-radius: 999px; font-size: 16px; font-weight: 600; height: 48px; line-height: 48px; text-align: center; border: none; flex: 1; transition: transform .18s cubic-bezier(.2,.8,.25,1), opacity .18s; }
+.btn-primary:active { transform: scale(.975); opacity: .9; }
+.btn-ghost { background: var(--brand-tint); color: var(--brand-deep); border: none; border-radius: 999px; font-size: 14px; font-weight: 500; height: 40px; line-height: 40px; padding: 0; text-align: center; transition: transform .18s; }
+.btn-ghost:active { transform: scale(.975); }
+.btn-danger-ghost { background: #fff; color: var(--danger); border: 1px solid var(--danger-bd); border-radius: 999px; font-size: 14px; height: 40px; line-height: 38px; text-align: center; flex: 1; }
+.text-sub { color: var(--n500); font-size: 12px; }
+.text-strong { font-weight: 600; }
+.row { display: flex; align-items: center; }
+.row-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-1 { flex: 1; min-width: 0; }
+.mt8 { margin-top: 4px; } .mt16 { margin-top: 8px; } .mt24 { margin-top: 12px; }
+
+/* 图标(.ic 体系,SVG data-URI 与 app.wxss 逐字一致) */
+.ic { display: inline-block; width: 20px; height: 20px; background-size: contain; background-repeat: no-repeat; background-position: center; vertical-align: -3px; flex-shrink: 0; }
+.ic-sm { width: 15px; height: 15px; vertical-align: -2px; }
+.ic-xs { width: 11px; height: 11px; vertical-align: -1px; }
+</style>
+<style>
+/* ============ 首页 ============ */
+.page-home { min-height: 100%; }
+.hero { position: relative; overflow: hidden; }
+.hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-scrim { position: absolute; inset: 0; background:
+  linear-gradient(180deg, rgba(23,28,36,.38) 0%, rgba(23,28,36,0) 32%),
+  linear-gradient(105deg, rgba(23,28,36,.55) 0%, rgba(23,28,36,.16) 52%, rgba(23,28,36,0) 78%),
+  linear-gradient(0deg, #FAF8F5 0%, rgba(250,248,245,0) 20%); }
+.hero-inner { position: relative; padding: 26px 12px 8px; }
+.hero-top-bar { display: flex; align-items: center; justify-content: space-between; padding: 5px 4px 3px; }
+.role-tabs { display: flex; align-items: flex-end; gap: 17px; }
+.role-tab { font-size: 15px; font-weight: 500; color: rgba(255,255,255,.78); padding-bottom: 6px; }
+.role-tab.on { font-size: 18px; font-weight: 600; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 3px; padding-bottom: 0; }
+.role-line { width: 22px; height: 3.5px; border-radius: 999px; background: var(--brand); }
+.trust-badge { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: #fff; background: rgba(0,0,0,.25); padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); }
+.trust-dot { width: 4px; height: 4px; border-radius: 50%; background: #fff; }
+.hero-hi { margin-top: 9px; padding: 0 4px; font-size: 13px; color: rgba(255,255,255,.82); line-height: 1.4; }
+.hero-brand { margin-top: 3px; padding: 0 4px; font-size: 32px; font-weight: 600; line-height: 1.2; color: #fff; }
+.hero-slogan { margin-top: 5px; padding: 0 4px; font-size: 13px; color: rgba(255,255,255,.88); line-height: 1.45; }
+.search-card { margin-top: 10px; border-radius: 999px; transition: transform .18s; }
+.search-card:active { transform: scale(.98); }
+.search-box { display: flex; align-items: center; gap: 7px; background: #fff; border-radius: 999px; padding: 6px 7px 6px 12px; box-shadow: 0 4px 12px rgba(23,28,36,.16); }
+.city-tag { display: flex; align-items: center; gap: 3px; }
+.city-text { font-size: 13px; font-weight: 600; color: var(--ink); }
+.search-divider { width: 1px; height: 16px; background: var(--n200); margin: 0 2px; }
+.search-ph { font-size: 13px; color: var(--n300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-btn { background: var(--brand); color: #fff; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px; flex-shrink: 0; }
+.home-body { padding: 0 12px 120px; }
+
+.promo-banner { margin-top: 10px; background: linear-gradient(135deg, #FFF5EB 0%, #FFE9D6 100%); border: 1px solid rgba(242,91,21,.18); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.promo-tag { display: inline-block; font-size: 10px; font-weight: 600; color: var(--brand-deep); background: rgba(242,91,21,.12); padding: 1px 6px; border-radius: 3px; margin-bottom: 3px; }
+.promo-title { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.promo-desc { font-size: 12px; color: var(--n500); margin-top: 2px; }
+.promo-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.promo-coupon { display: flex; align-items: baseline; color: var(--brand); font-weight: 800; }
+.coupon-unit { font-size: 11px; } .coupon-val { font-size: 19px; line-height: 1; margin: 0 1px; } .coupon-txt { font-size: 11px; font-weight: 600; }
+.promo-btn { background: var(--brand); color: #fff; font-size: 11px; font-weight: 600; padding: 4px 11px; border-radius: 999px; }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; margin-bottom: 8px; padding: 0 2px; }
+.section-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+.section-accent { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--brand); }
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); row-gap: 22px; padding: 4px 6px 2px; }
+.cat-cell { display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; }
+.cat-cell:active { transform: scale(.95); }
+.cat-ic { width: 46px; height: 46px; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.cat-name { font-size: 13px; color: var(--ink); font-weight: 500; }
+
+.hot-panel { margin-top: 16px; background: #fff; border: 1px solid var(--n200); border-radius: 12px; padding: 13px 0 5px; box-shadow: 0 2px 8px rgba(23,28,36,.04); }
+.hot-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 0 13px 11px; }
+.hot-panel-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+.hot-panel-accent { margin-left: 7px; font-size: 11px; font-weight: 500; color: var(--brand); }
+.hot-panel-more { display: flex; align-items: center; gap: 2px; font-size: 12px; color: var(--n500); }
+.hot-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.hot-cell { padding: 3px 13px 12px; cursor: pointer; }
+.hot-cell:active { transform: scale(.97); }
+.hot-cell--br { border-right: 1px solid #F1EDE6; }
+.hot-cell--bb { border-bottom: 1px solid #F1EDE6; }
+.hot-img-box { width: 100%; height: 75px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; overflow: hidden; position: relative; }
+.hot-img--clean { background: #F2F8FD; } .hot-img--fluoride { background: #F0FAF5; } .hot-img--repair { background: #FCF6F2; } .hot-img--move { background: #FDF9F0; }
+.hot-img { width: 88%; height: 94%; object-fit: contain; }
+.hot-badge { position: absolute; left: 6px; top: 6px; background: linear-gradient(135deg, #FF7A1A 0%, #F25B15 100%); color: #fff; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 5px 5px 5px 1px; z-index: 2; }
+.hot-name { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+.hot-sub { font-size: 10px; color: #8F9BB3; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+.hot-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
+.hot-price { display: flex; align-items: baseline; color: var(--brand); line-height: 1; }
+.hot-p-sym { font-size: 11px; font-weight: 600; margin-right: 1px; }
+.hot-p-val { font-size: 17px; font-weight: 800; font-feature-settings: 'tnum'; }
+.hot-p-unit { font-size: 10px; color: var(--n500); margin-left: 1px; }
+.hot-p-strike { font-size: 9px; color: var(--n300); text-decoration: line-through; margin-left: 3px; }
+.hot-action { background: linear-gradient(135deg, #FF7A1A 0%, #F25B15 100%); color: #fff; font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 999px; line-height: 1.4; box-shadow: 0 2px 5px rgba(242,91,21,.25); }
+.hot-note { padding: 8px 13px 4px; font-size: 10px; color: var(--n300); text-align: center; }
+
+.section-accent2 { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--brand); }
+.act-card { margin-top: 9px; border-radius: 12px; padding: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.act-card:active { transform: scale(.98); }
+.act-card--mint { background: linear-gradient(120deg, #E9F7EF 0%, #DDF0E4 100%); }
+.act-card--warm { background: linear-gradient(120deg, #FFF3E8 0%, #FFE6D0 100%); }
+.act-info { flex: 1; display: flex; flex-direction: column; align-items: flex-start; }
+.act-title { font-size: 16px; font-weight: 700; color: #1C2B22; line-height: 1.3; }
+.act-card--warm .act-title { color: #3A2412; }
+.act-sub { margin-top: 4px; font-size: 11px; color: #5A6B60; line-height: 1.4; }
+.act-card--warm .act-sub { color: #7A5B3D; }
+.act-cta { margin-top: 10px; background: linear-gradient(135deg, #FF7A1A 0%, #F25B15 100%); color: #fff; font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 999px; box-shadow: 0 3px 7px rgba(242,91,21,.28); }
+.act-cta--blue { background: linear-gradient(135deg, #4A80E8 0%, #2E5FD1 100%); box-shadow: 0 3px 7px rgba(46,95,209,.28); }
+.act-img { width: 100px; height: 85px; flex-shrink: 0; margin-left: 9px; object-fit: contain; }
+
+.sec-label { margin: 16px 4px 7px; font-size: 13px; font-weight: 600; color: var(--n500); }
+.order-strip { margin-top: 8px; background: #fff; border: 1px solid var(--n200); border-radius: 10px; padding: 11px 13px; display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.order-strip:active { transform: scale(.98); }
+.strip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.strip-title { font-size: 14px; font-weight: 600; }
+.strip-time { font-size: 12px; color: var(--n500); margin-left: 4px; }
+
+.trust-bar { margin-top: 18px; border-top: 1px solid #EAE4DB; border-bottom: 1px solid #EAE4DB; padding: 13px 4px; display: flex; align-items: center; justify-content: space-around; }
+.trust-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--n500); }
+.trust-ic { width: 16px; height: 16px; }
+
+.dual-row { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dual-card { position: relative; overflow: hidden; border-radius: 12px; padding: 15px 13px 13px; display: flex; flex-direction: column; align-items: flex-start; cursor: pointer; }
+.dual-card:active { transform: scale(.98); }
+.dual-card--shop { background: linear-gradient(155deg, #FFF7EC 0%, #FFEBD4 100%); border: 1px solid rgba(242,91,21,.14); }
+.dual-card--blue { background: linear-gradient(155deg, #EFF4FE 0%, #DFEAFD 100%); border: 1px solid rgba(46,95,209,.14); }
+.dual-card::before { content: ''; position: absolute; top: -35px; right: -35px; width: 110px; height: 110px; border-radius: 50%; background: rgba(255,255,255,.45); }
+.dual-card::after { content: ''; position: absolute; bottom: -20px; left: -15px; width: 55px; height: 55px; border-radius: 50%; background: rgba(255,255,255,.3); }
+.dual-ic { position: relative; z-index: 1; width: 44px; height: 44px; object-fit: contain; }
+.dual-t { position: relative; z-index: 1; margin-top: 9px; font-size: 14px; font-weight: 700; line-height: 1.3; color: var(--ink); }
+.dual-s { position: relative; z-index: 1; margin-top: 3px; font-size: 11px; line-height: 1.4; color: var(--n500); }
+.dual-go { position: relative; z-index: 1; margin-top: 10px; display: flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; background: #fff; padding: 4px 10px; border-radius: 999px; box-shadow: 0 2px 5px rgba(23,28,36,.06); }
+.dual-go--shop { color: var(--brand-deep); }
+.dual-go--blue { color: #2E5FD1; }
+
+.trust-guarantee-card { margin-top: 20px; border-top: 1px solid #EAE4DB; padding: 16px 4px 6px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.trust-g-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.trust-g-ic { width: 18px; height: 18px; margin-bottom: 4px; }
+.trust-g-t { font-size: 12px; font-weight: 600; color: var(--ink); }
+.trust-g-s { font-size: 10px; color: #8F9BB3; margin-top: 1px; transform: scale(.95); }
+
+/* ============ tabBar(源自 custom-tab-bar) ============ */
+.tabbar { position: absolute; bottom: 0; left: 0; right: 0; height: 54px; background: #fff; display: flex; box-shadow: 0 -3px 12px rgba(23,28,36,.05); z-index: 40; }
+.tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; position: relative; }
+.tab-ic { width: 24px; height: 24px; }
+.tab-text { font-size: 12px; color: var(--n500); }
+.tab-text-on { color: var(--brand); font-weight: 500; }
+.tab-item--cta { justify-content: flex-end; padding-bottom: 3px; }
+.tab-cta-btn { position: relative; margin-top: -22px; }
+.tab-cta-badge { position: absolute; top: -4px; right: -8px; z-index: 2; padding: 1px 5px; border-radius: 8px 8px 8px 2px; background: #fff; color: var(--brand); font-size: 9px; font-weight: 600; line-height: 1.3; border: 1px solid rgba(242,91,21,.28); box-shadow: 0 2px 5px rgba(242,91,21,.18); }
+.tab-cta-img { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(180deg, #FF7430 0%, #F25B15 100%); box-shadow: 0 5px 12px rgba(242,91,21,.28), inset 0 1px 2px rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; animation: cta-pulse 2.8s ease-in-out infinite; }
+.tab-cta-img svg { width: 26px; height: 26px; }
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 5px 12px rgba(242,91,21,.28), inset 0 1px 2px rgba(255,255,255,.35), 0 0 0 0 rgba(242,91,21,.22); }
+  70% { box-shadow: 0 5px 12px rgba(242,91,21,.28), inset 0 1px 2px rgba(255,255,255,.35), 0 0 0 9px rgba(242,91,21,0); }
+}
+.tab-text--cta { color: var(--brand); font-weight: 500; }
+
+/* ============ 发单页 ============ */
+.pub-trust { background: #FFF5EB; border-bottom: 1px solid rgba(242,91,21,.12); padding: 7px 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pub-trust-item { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 500; color: var(--brand-deep); }
+.pub-trust-ic { width: 11px; height: 11px; background-color: var(--brand); border-radius: 50%; background-size: 7px; background-position: center; background-repeat: no-repeat; }
+.pub-trust-sep { color: rgba(201,73,12,.4); font-size: 10px; }
+.pub-body { padding: 8px 12px 0; }
+.sec-head { display: flex; align-items: center; justify-content: space-between; }
+.sec-title { font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+.sec-tip { font-size: 11px; color: #8F9BB3; }
+.divider { height: 1px; background: var(--n200); transform: scaleY(.5); margin: 15px 0 13px; }
+.svc-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.svc-cell { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 0 9px; background: #F6F7F9; border: 1px solid transparent; border-radius: 9px; position: relative; cursor: pointer; transition: background-color .2s, border-color .2s; }
+.svc-on { background: #FFF6F2; border-color: var(--brand); box-shadow: 0 2px 6px rgba(242,91,21,.08); }
+.svc-ic { width: 34px; height: 34px; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.svc-name { font-size: 12px; font-weight: 500; color: var(--n500); }
+.svc-on .svc-name { font-weight: 600; color: var(--brand-deep); }
+.svc-check { position: absolute; top: -1px; right: -1px; width: 15px; height: 15px; border-radius: 0 9px 0 9px; background: var(--brand); background-size: 9px; background-position: center; background-repeat: no-repeat; }
+.equip-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+.scene-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 11px 6px 10px; background: #F6F7F9; border: 1px solid transparent; border-radius: 9px; position: relative; cursor: pointer; transition: background-color .2s, border-color .2s; }
+.scene-on { background: #FFF6F2; border-color: var(--brand); }
+.scene-name { font-size: 14px; font-weight: 500; color: var(--n500); }
+.scene-on .scene-name { font-weight: 600; color: var(--brand-deep); }
+.scene-sub { font-size: 11px; color: #98A1AC; }
+.form-textarea { background: #F6F7F9; border: none; border-radius: 8px; padding: 10px 12px; font-size: 14px; width: 100%; min-height: 80px; font-family: inherit; resize: none; color: var(--ink); }
+.form-textarea:focus { outline: 1.5px solid var(--brand); }
+.sym-row { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.sym-chip { font-size: 12px; color: var(--n500); background: #F6F7F9; border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.sym-chip:active { color: var(--brand-deep); background: var(--brand-tint); }
+.photo-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.photo-thumb { width: 98px; height: 98px; border-radius: 8px; object-fit: cover; }
+.photo-add { width: 98px; height: 98px; border-radius: 8px; background: #F6F7F9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px dashed var(--n200); }
+.photo-add-lb { font-size: 12px; color: var(--n300); }
+.list-card { padding: 2px 14px; }
+.li { display: flex; align-items: center; gap: 11px; padding: 14px 0; position: relative; }
+.li::after { content: ''; position: absolute; left: 19px; right: 0; bottom: 0; height: 1px; background: var(--n200); transform: scaleY(.5); transform-origin: 0 100%; }
+.li:last-child::after { display: none; }
+.li-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.li-dot-addr { background: var(--success); } .li-dot-time { background: var(--brand); } .li-dot-phone { background: #3D6FD1; }
+.li-main { font-size: 14px; font-weight: 600; }
+.li-ph { font-size: 14px; color: var(--n300); }
+.li-input { font-size: 14px; border: none; background: transparent; width: 100%; color: var(--ink); font-family: inherit; }
+.li-input:focus { outline: none; }
+.li-input::placeholder { color: var(--n300); }
+.li-note { font-size: 12px; color: var(--n500); flex-shrink: 0; }
+.sticky-bar { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--n200); padding: 10px 14px 12px; z-index: 50; }
+.sticky-note { text-align: center; font-size: 12px; color: var(--n300); margin-top: 6px; }
+
+/* ============ 接单大厅 ============ */
+.hall-page { min-height: 100%; background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 80px, #FAF8F5 170px); }
+.hall-head { background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 60%, #FAF8F5 100%); padding: 8px 12px 2px; }
+.gold-bar { background: linear-gradient(100deg, #FAF3E3, #F0E1C3); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; }
+.gold-title { font-size: 14px; font-weight: 600; color: #6E5619; }
+.gold-sub { font-size: 12px; color: #96793B; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gold-btn { background: #443521; color: #F1DCA6; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 5px 14px; cursor: pointer; flex-shrink: 0; border: none; }
+.filter-row { display: flex; align-items: flex-end; gap: 10px; padding: 12px 4px 8px; }
+.cat-tabs-wrap { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.cat-tabs-wrap::-webkit-scrollbar { display: none; }
+.cat-tabs { display: inline-flex; gap: 18px; align-items: flex-end; padding-right: 4px; }
+.cat-tab { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; font-size: 14px; color: var(--n500); cursor: pointer; transition: color .2s; }
+.cat-tab.on { font-weight: 600; color: var(--ink); }
+.cat-tab-line { width: 20px; height: 3px; border-radius: 999px; background: var(--brand); }
+.cat-tab-line--ghost { background: transparent; }
+.sort-toggle { flex-shrink: 0; font-size: 13px; color: var(--n500); padding-bottom: 4px; white-space: nowrap; cursor: pointer; }
+.hall-body { padding: 2px 12px 120px; }
+.subs-btn { margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; }
+.o-card { padding: 14px; cursor: pointer; }
+.o-title { font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+.o-badge { font-size: 12px; font-weight: 600; color: var(--brand-deep); background: var(--brand-tint); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+.o-badge-plain { color: var(--n500); background: #F1F3F6; }
+.o-badge-hot { color: #fff; background: var(--brand); }
+.o-desc { font-size: 13px; color: var(--n700); margin-top: 5px; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.o-dist { text-align: right; margin-left: 10px; flex-shrink: 0; }
+.o-dist-num { font-size: 19px; font-weight: 800; color: var(--ink); line-height: 1.1; font-feature-settings: 'tnum'; }
+.o-dist-num.near { color: var(--brand); }
+.o-dist-unit { font-size: 12px; font-weight: 500; color: var(--n500); }
+.o-dist-lb { font-size: 12px; color: var(--n500); margin-top: 2px; }
+.o-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 11px; padding-top: 10px; position: relative; }
+.o-foot::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--n200); transform: scaleY(.5); transform-origin: 0 0; }
+.o-meta { font-size: 12px; color: var(--n500); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.o-meta-addr { color: var(--n700); }
+.o-foot .btn-cta-sm { flex-shrink: 0; margin-left: 10px; }
+.my-strip { margin-top: 8px; background: #fff; border: 1px solid var(--n200); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.my-strip:active { transform: scale(.98); }
+.empty-box { text-align: center; color: var(--n500); padding: 48px 0; font-size: 14px; }
+.empty-img { width: 120px; height: 120px; margin: 0 auto 12px; display: block; object-fit: contain; }
+
+/* ============ 订单详情 ============ */
+.od-wrap { padding: 12px 12px 120px; }
+.status-banner { background: #fff; border: 1px solid var(--n200); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.status-label { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; line-height: 1.25; color: var(--ink); }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.status-sub { font-size: 13px; color: var(--n500); margin-top: 6px; padding-left: 17px; line-height: 1.5; }
+.radar-banner { border-radius: 12px; background: #E0761A; padding: 20px 14px 16px; margin-bottom: 12px; position: relative; overflow: hidden; }
+.radar-disc { position: relative; width: 76px; height: 76px; margin: 0 auto; }
+@keyframes radar-pulse { 0% { transform: scale(.4); opacity: .5; } 100% { transform: scale(1.7); opacity: 0; } }
+.radar-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.9); animation: radar-pulse 1.8s ease-out infinite; }
+.radar-ring--2 { animation-delay: .6s; } .radar-ring--3 { animation-delay: 1.2s; }
+.radar-core { position: absolute; inset: 0; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(23,28,36,.18); }
+.radar-core .cat-ic { width: 38px; height: 38px; }
+.radar-title { text-align: center; font-size: 17px; font-weight: 600; line-height: 1.3; color: #fff; margin-top: 12px; }
+.radar-sub { text-align: center; font-size: 12px; color: rgba(255,255,255,.85); margin-top: 3px; }
+.tl { display: flex; padding: 16px 8px 10px; }
+.tl-node { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; }
+.tl-node::before { content: ''; position: absolute; top: 5.5px; left: -50%; right: 50%; border-top: 1px dashed var(--n250); }
+.tl-node:first-child::before { display: none; }
+.tl-node--done::before, .tl-node--current::before, .tl-node--stop::before { border-top: 1px solid var(--n300); }
+.tl-dot { position: relative; z-index: 1; box-sizing: border-box; width: 12px; height: 12px; border-radius: 50%; background: #F6F7F9; border: 1.5px solid var(--n250); }
+.tl-node--done .tl-dot { background: var(--n300); border-color: var(--n300); }
+.tl-node--current .tl-dot { width: 14px; height: 14px; background: var(--brand); border-color: var(--brand); }
+.tl-node--stop .tl-dot { background: var(--danger); border-color: var(--danger); }
+.tl-pulse { display: none; }
+.tl-node--current .tl-pulse { display: block; position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px; border-radius: 50%; background: var(--brand); opacity: .4; animation: tl-pulse 1.6s ease-out infinite; }
+@keyframes tl-pulse { 0% { transform: scale(1); opacity: .4; } 100% { transform: scale(2.6); opacity: 0; } }
+.tl-label { font-size: 12px; line-height: 1.3; color: var(--n300); margin-top: 6px; }
+.tl-node--done .tl-label { color: var(--n500); font-weight: 500; }
+.tl-node--current .tl-label { color: var(--brand-deep); font-weight: 600; }
+.tl-node--stop .tl-label { color: var(--danger); font-weight: 500; }
+.tl-time { min-height: 16px; font-size: 11px; line-height: 1.4; color: var(--n300); margin-top: 1px; font-feature-settings: 'tnum'; }
+.tl-node--current .tl-time { color: var(--n500); }
+.scene-head { display: flex; align-items: center; gap: 6px; }
+.scene-tag { font-size: 11px; font-weight: 600; color: var(--n500); background: #F1F3F6; border-radius: 5px; padding: 2px 7px; }
+.scene-tag--hot { color: #fff; background: var(--brand); }
+.info-row { display: flex; font-size: 13px; margin-top: 5px; color: var(--n700); }
+.info-label { color: var(--n500); width: 70px; flex-shrink: 0; }
+.order-map { width: 100%; height: 150px; border-radius: 8px; margin-top: 10px; position: relative; overflow: hidden; background: linear-gradient(160deg, #EAF3EC 0%, #E4EEF6 60%, #EDF2E8 100%); }
+.order-map .map-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(23,28,36,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(23,28,36,.045) 1px, transparent 1px); background-size: 34px 34px; }
+.order-map .map-road { position: absolute; left: 0; right: 0; top: 58%; height: 12px; background: #fff; box-shadow: 0 1px 0 rgba(23,28,36,.05); transform: rotate(-6deg); }
+.order-map .map-road2 { position: absolute; top: 0; bottom: 0; left: 30%; width: 9px; background: #fff; box-shadow: 1px 0 0 rgba(23,28,36,.05); transform: rotate(8deg); }
+.order-map .map-pin { position: absolute; left: 52%; top: 38%; width: 34px; height: 34px; transform: translate(-50%,-100%); filter: drop-shadow(0 3px 4px rgba(23,28,36,.25)); }
+.trust-card { display: flex; align-items: center; gap: 12px; background: linear-gradient(145deg, #1E2530 0%, #151A22 100%); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(23,28,36,.12); }
+.trust-avatar { width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(100deg, #FA6E2A, #F25B15); color: #fff; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.trust-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.trust-name { font-size: 16px; font-weight: 600; line-height: 1.3; color: #fff; }
+.trust-badge { flex-shrink: 0; font-size: 11px; font-weight: 600; color: #fff; background: var(--brand); border-radius: 4px; padding: 2px 6px; }
+.trust-stats { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+.trust-star { width: 13px; height: 13px; flex-shrink: 0; }
+.trust-rating { font-size: 13px; font-weight: 600; line-height: 1.1; color: #fff; font-feature-settings: 'tnum'; }
+.trust-done { font-size: 12px; color: rgba(255,255,255,.72); }
+.trust-call { width: 44px; height: 44px; border-radius: 50%; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.trust-call:active { transform: scale(.94); }
+.contact-card { display: flex; align-items: center; gap: 12px; }
+.contact-avatar { width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; background: var(--brand-tint); color: var(--brand-deep); font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.contact-name { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.contact-phone { font-size: 13px; color: var(--n500); margin-top: 3px; font-feature-settings: 'tnum'; }
+.contact-call { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-tint); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.stars-input { display: flex; }
+.star-tap { width: 30px; height: 30px; margin-right: 6px; cursor: pointer; }
+.stars-static { display: flex; }
+.star-s { width: 17px; height: 17px; margin-right: 3px; }
+.action-panel { position: absolute; left: 0; right: 0; bottom: 0; z-index: 50; background: #fff; border-top: 1px solid var(--n200); padding: 8px 12px 12px; }
+.action-row { display: flex; align-items: center; gap: 10px; }
+.more-btn { width: 48px; height: 48px; flex-shrink: 0; border-radius: 8px; background: #F6F7F9; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.more-dots { font-size: 14px; font-weight: 600; color: var(--n500); line-height: 1; letter-spacing: 1px; }
+
+/* ============ 钱包 ============ */
+.wallet-page { padding: 12px 12px 60px; }
+.w-hero { background: var(--ink-surface); border-radius: 12px; padding: 18px; color: #fff; display: flex; align-items: center; justify-content: space-between; }
+.w-hero-label { font-size: 13px; opacity: .9; }
+.w-hero-num { font-size: 36px; font-weight: 800; line-height: 1.2; margin-top: 4px; font-feature-settings: 'tnum'; }
+.w-hero-sub { font-size: 11px; opacity: .85; margin-top: 5px; }
+.w-hero-img { width: 70px; height: 70px; flex-shrink: 0; margin-left: 10px; object-fit: contain; }
+.w-opts { display: flex; gap: 8px; margin-top: 12px; }
+.w-opt { flex: 1; padding: 13px 0; text-align: center; background: #F6F7F9; border: 1px solid transparent; border-radius: 8px; cursor: pointer; transition: background-color .2s, border-color .2s; font-feature-settings: 'tnum'; }
+.w-opt-on { background: var(--brand-tint); border-color: var(--brand); }
+.w-opt-num { font-size: 16px; font-weight: 700; color: var(--n700); font-feature-settings: 'tnum'; }
+.w-opt-on .w-opt-num { color: var(--brand-deep); }
+.w-service { text-align: center; margin-top: 10px; }
+.w-service-phone { color: var(--brand-deep); font-size: 12px; text-decoration: underline; }
+.w-empty { text-align: center; color: var(--n300); font-size: 13px; padding: 20px 0; }
+.w-log { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid #F1F3F6; }
+.w-log:last-child { border-bottom: none; }
+.w-log-t { font-size: 14px; font-weight: 500; color: var(--ink); }
+.w-log-sub { font-size: 12px; color: #98A1AC; margin-top: 2px; }
+.w-log-amt { font-size: 16px; font-weight: 700; color: var(--ink); font-feature-settings: 'tnum'; }
+.w-amt-pos { color: var(--brand-deep); }
+
+/* ============ 弹层 / Toast ============ */
+.modal-mask { position: fixed; inset: 0; background: rgba(23,28,36,.55); z-index: 900; display: flex; align-items: center; justify-content: center; animation: fadein .18s ease; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.modal { width: 320px; background: #fff; border-radius: 16px; padding: 24px 20px 16px; text-align: center; animation: pop .22s cubic-bezier(.2,.8,.25,1); }
+@keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-title { font-size: 17px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.modal-body { font-size: 14px; color: var(--n700); margin-top: 10px; line-height: 1.6; text-align: left; }
+.modal-btns { display: flex; gap: 10px; margin-top: 18px; }
+.modal-btn { flex: 1; border-radius: 999px; font-size: 15px; font-weight: 600; height: 42px; line-height: 42px; border: none; }
+.modal-btn--main { background: var(--brand); color: #fff; }
+.modal-btn--sub { background: #F6F7F9; color: var(--n700); }
+.modal-x { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 50%; background: #F6F7F9; display: flex; align-items: center; justify-content: center; }
+#toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(23,28,36,.88); color: #fff; font-size: 14px; padding: 10px 18px; border-radius: 10px; z-index: 999; opacity: 0; pointer-events: none; transition: opacity .25s; max-width: 70vw; text-align: center; }
+#toast.show { opacity: 1; }
+
+/* ============ 并发抢单演示 ============ */
+.conc-stage { width: 640px; max-width: 92vw; background: #fff; border-radius: 18px; padding: 26px 26px 22px; position: relative; }
+.conc-title { font-size: 19px; font-weight: 700; text-align: center; }
+.conc-sub { font-size: 13px; color: var(--n500); text-align: center; margin-top: 6px; line-height: 1.6; }
+.conc-order { margin: 16px 0; background: #F6F7F9; border-radius: 12px; padding: 12px 14px; font-size: 13px; color: var(--n700); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.conc-order b { color: var(--ink); }
+.conc-phones { display: flex; gap: 16px; }
+.conc-phone { flex: 1; border: 1.5px solid var(--n200); border-radius: 14px; padding: 14px; text-align: center; transition: border-color .25s, background .25s; }
+.conc-phone .cp-avatar { width: 44px; height: 44px; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 17px; }
+.conc-phone .cp-name { font-size: 14px; font-weight: 600; }
+.conc-phone .cp-bal { font-size: 12px; color: var(--n500); margin-top: 2px; }
+.conc-phone .cp-btn { margin-top: 10px; width: 100%; height: 38px; border-radius: 999px; border: none; background: var(--brand); color: #fff; font-size: 14px; font-weight: 600; transition: transform .15s; }
+.conc-phone .cp-btn:disabled { opacity: .55; }
+.conc-phone.racing .cp-btn { transform: scale(.94); }
+.conc-phone.won { border-color: var(--success); background: #F0FAF5; }
+.conc-phone.lost { border-color: var(--danger-bd); background: #FDF6F5; }
+.conc-result { margin-top: 10px; font-size: 12.5px; line-height: 1.5; min-height: 38px; border-radius: 8px; padding: 6px 8px; }
+.conc-phone.won .conc-result { color: var(--success); background: #E6F5EE; }
+.conc-phone.lost .conc-result { color: var(--danger); background: var(--danger-tint); }
+.conc-note { margin-top: 14px; font-size: 12.5px; color: var(--n500); background: #F6F7F9; border-radius: 10px; padding: 10px 14px; line-height: 1.7; }
+.conc-note b { color: var(--ink); }
+
+/* 响应式:窄屏上下堆叠 */
+@media (max-width: 900px) {
+  .stage { flex-direction: column; align-items: center; gap: 28px; }
+  .link-col { padding-top: 0; flex-direction: row; }
+  .link-badge { writing-mode: horizontal-tb; border: none; border-top: 1px dashed var(--n250); border-bottom: 1px dashed var(--n250); padding: 6px 8px; letter-spacing: 4px; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-head">
+  <div class="site-brand">
+    <div class="site-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div>
+      <div class="site-title">空调帮 · 在线可玩演示</div>
+      <div class="site-sub">同城垂直空调维修撮合平台 —— 左边当顾客,右边当师傅,两边实时联动</div>
+    </div>
+  </div>
+  <div class="site-actions">
+    <button class="site-btn" onclick="openConc()">⚡ 演示并发抢单</button>
+    <button class="site-btn site-btn--ghost" onclick="resetDemo()">↺ 重新演示</button>
+    <a class="site-btn site-btn--dark" style="text-decoration:none" href="https://github.com/libinyam/aircon-bang" target="_blank" rel="noopener">GitHub 仓库</a>
+  </div>
+</header>
+
+<div class="guide">
+  <span class="step"><span class="num">1</span>左侧手机点任意服务,<b>免费发单</b></span>
+  <span class="step"><span class="num">2</span>右侧大厅<b>立刻出现订单</b>,点「抢单」(扣接单费)</span>
+  <span class="step"><span class="num">3</span>师傅点「维修已完成」</span>
+  <span class="step"><span class="num">4</span>左侧「确认完成」并<b>评价</b>,全流程闭环</span>
+</div>
+
+<main class="stage">
+  <section class="phone-col">
+    <div class="phone-label"><span class="p-dot" style="background:var(--brand)"></span>顾客端(用户视角)</div>
+    <div class="phone" id="phoneUser">
+      <div class="notch"></div>
+      <div class="nav" id="navUser"></div>
+      <div class="screen" id="scrUser"></div>
+      <div class="tabbar" id="tabUser"></div>
+    </div>
+  </section>
+
+  <div class="link-col"><div class="link-badge">实时联动</div></div>
+
+  <section class="phone-col">
+    <div class="phone-label"><span class="p-dot" style="background:var(--master-blue)"></span>师傅端(接单视角)</div>
+    <div class="phone" id="phoneMaster">
+      <div class="notch"></div>
+      <div class="nav" id="navMaster"></div>
+      <div class="screen" id="scrMaster"></div>
+      <div class="tabbar" id="tabMaster"></div>
+    </div>
+  </section>
+</main>
+
+<footer style="max-width:1200px;margin:0 auto 40px;padding:0 24px;font-size:12.5px;color:var(--n300);text-align:center">
+  本页面为纯前端演示,数据仅存于你的浏览器内存,刷新即重置 · 开源地址 github.com/libinyam/aircon-bang
+</footer>
+
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<script>
+/* =====================================================
+   图标库(SVG data-URI 与小程序 app.wxss 逐字一致)
+   ===================================================== */
+var IC = {
+  'caret-d': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667180' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9.5 12 15.5 18 9.5'/%3E%3C/svg%3E\")",
+  'search-o': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25B15' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cline x1='16' y1='16' x2='20.5' y2='20.5'/%3E%3C/svg%3E\")",
+  'chev': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A9B1BD' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 6 15 12 9 18'/%3E%3C/svg%3E\")",
+  'chev-o': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C9490C' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 6 15 12 9 18'/%3E%3C/svg%3E\")",
+  'chev-b': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232E5FD1' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 6 15 12 9 18'/%3E%3C/svg%3E\")",
+  'back': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23171C24' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='15 5 8 12 15 19'/%3E%3C/svg%3E\")",
+  'check-w': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5 12.5 10 17.5 19 7.5'/%3E%3C/svg%3E\")",
+  'clock': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667180' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpolyline points='12 7 12 12 15.5 14'/%3E%3C/svg%3E\")",
+  'phone-o': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25B15' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z'/%3E%3C/svg%3E\")",
+  'bell-o': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25B15' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9'/%3E%3Cpath d='M13.73 21a2 2 0 0 1-3.46 0'/%3E%3C/svg%3E\")",
+  'plus-g': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A9B1BD' stroke-width='2.4' stroke-linecap='round'%3E%3Cline x1='12' y1='5' x2='12' y2='19'/%3E%3Cline x1='5' y1='12' x2='19' y2='12'/%3E%3C/svg%3E\")",
+  'close-w': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'%3E%3Cline x1='6.5' y1='6.5' x2='17.5' y2='17.5'/%3E%3Cline x1='17.5' y1='6.5' x2='6.5' y2='17.5'/%3E%3C/svg%3E\")",
+  'close-d': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23667180' stroke-width='2.4' stroke-linecap='round'%3E%3Cline x1='6.5' y1='6.5' x2='17.5' y2='17.5'/%3E%3Cline x1='17.5' y1='6.5' x2='6.5' y2='17.5'/%3E%3C/svg%3E\")",
+  'star-on': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.7 5.4 6 .9-4.3 4.2 1 6-5.4-2.8-5.4 2.8 1-6L3.3 9.1l6-.9z' fill='%23C9932B'/%3E%3C/svg%3E\")",
+  'star-off': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.8l2.7 5.4 6 .9-4.3 4.2 1 6-5.4-2.8-5.4 2.8 1-6L3.3 9.1l6-.9z' fill='%23E3E7ED'/%3E%3C/svg%3E\")",
+  'shield-f': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.6 19.5 5.5v5.6c0 4.5-3 7.7-7.5 9.4-4.5-1.7-7.5-4.9-7.5-9.4V5.5z' fill='%23454F5E'/%3E%3Cpath d='m8.9 11.6 2.2 2.2 4.2-4.4' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='m8.9 11.6 2.2 2.2 4.2-4.4' fill='none' stroke='%23F25B15' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+  'doc-f': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 6a3 3 0 0 1 3-3h6l5 5v10a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z' fill='%23454F5E'/%3E%3Cpath d='M14 3l5 5h-4a1 1 0 0 1-1-1z' fill='%23F25B15' stroke='%23fff' stroke-width='1'/%3E%3Cg stroke='%23fff' stroke-width='1.5' stroke-linecap='round' opacity='0.9'%3E%3Cline x1='9' y1='12.5' x2='15' y2='12.5'/%3E%3Cline x1='9' y1='16' x2='13.5' y2='16'/%3E%3C/g%3E%3C/svg%3E\")",
+  'wallet': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='7.5' width='18' height='12' rx='2.4' fill='%23454F5E'/%3E%3Cpath d='M4 7.9 16.6 4.3a1.2 1.2 0 0 1 1.5.85l.5 1.85' fill='none' stroke='%23454F5E' stroke-width='1.7' stroke-linecap='round'/%3E%3Ccircle cx='16.8' cy='13.5' r='2.5' fill='%23F25B15' stroke='%23fff' stroke-width='1.3'/%3E%3C/svg%3E\")",
+  'join-sq': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z' fill='none' stroke='%23454F5E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='18.5' cy='18' r='4.4' fill='%23F25B15' stroke='%23fff' stroke-width='1.6'/%3E%3Crect x='16.5' y='17.3' width='4' height='1.4' rx='0.7' fill='%23fff'/%3E%3Crect x='17.8' y='16' width='1.4' height='4' rx='0.7' fill='%23fff'/%3E%3C/svg%3E\")",
+  'tab-home': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 10.8 12 4l8 6.8V19a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19z' fill='%237D8A9A'/%3E%3Crect x='10.3' y='13.6' width='3.4' height='6' rx='1.2' fill='%23fff'/%3E%3C/svg%3E\")",
+  'tab-home-on': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 10.8 12 4l8 6.8V19a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19z' fill='%23F25B15'/%3E%3Crect x='10.3' y='13.6' width='3.4' height='6' rx='1.2' fill='%23fff'/%3E%3C/svg%3E\")",
+  'tab-hall': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='3.5' width='16' height='17' rx='2.8' fill='%237D8A9A'/%3E%3Cg stroke='%23fff' stroke-width='1.7' stroke-linecap='round'%3E%3Cline x1='8' y1='8.5' x2='16' y2='8.5'/%3E%3Cline x1='8' y1='12' x2='16' y2='12'/%3E%3Cline x1='8' y1='15.5' x2='12.5' y2='15.5'/%3E%3C/g%3E%3C/svg%3E\")",
+  'tab-hall-on': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4' y='3.5' width='16' height='17' rx='2.8' fill='%23F25B15'/%3E%3Cg stroke='%23fff' stroke-width='1.7' stroke-linecap='round'%3E%3Cline x1='8' y1='8.5' x2='16' y2='8.5'/%3E%3Cline x1='8' y1='12' x2='16' y2='12'/%3E%3Cline x1='8' y1='15.5' x2='12.5' y2='15.5'/%3E%3C/g%3E%3C/svg%3E\")",
+  'tab-shop': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 8h14l-1.1 11.3a2 2 0 0 1-2 1.7H8.1a2 2 0 0 1-2-1.7z' fill='%237D8A9A'/%3E%3Cpath d='M9 9.5V6.6a3 3 0 0 1 6 0v2.9' fill='none' stroke='%237D8A9A' stroke-width='1.8' stroke-linecap='round'/%3E%3Cg stroke='%23fff' stroke-width='1.5' stroke-linecap='round'%3E%3Cline x1='12' y1='11.6' x2='12' y2='17.6'/%3E%3Cline x1='9.5' y1='13.1' x2='14.5' y2='16.1'/%3E%3Cline x1='14.5' y1='13.1' x2='9.5' y2='16.1'/%3E%3C/g%3E%3C/svg%3E\")",
+  'tab-shop-on': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 8h14l-1.1 11.3a2 2 0 0 1-2 1.7H8.1a2 2 0 0 1-2-1.7z' fill='%23F25B15'/%3E%3Cpath d='M9 9.5V6.6a3 3 0 0 1 6 0v2.9' fill='none' stroke='%23F25B15' stroke-width='1.8' stroke-linecap='round'/%3E%3Cg stroke='%23fff' stroke-width='1.5' stroke-linecap='round'%3E%3Cline x1='12' y1='11.6' x2='12' y2='17.6'/%3E%3Cline x1='9.5' y1='13.1' x2='14.5' y2='16.1'/%3E%3Cline x1='14.5' y1='13.1' x2='9.5' y2='16.1'/%3E%3C/g%3E%3C/svg%3E\")",
+  'tab-user': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4' fill='%237D8A9A'/%3E%3Cpath d='M12 14.6c-3.7 0-6.6 2-7.5 5.6h15c-.9-3.6-3.8-5.6-7.5-5.6z' fill='%237D8A9A'/%3E%3C/svg%3E\")",
+  'tab-user-on': "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4' fill='%23F25B15'/%3E%3Cpath d='M12 14.6c-3.7 0-6.6 2-7.5 5.6h15c-.9-3.6-3.8-5.6-7.5-5.6z' fill='%23F25B15'/%3E%3C/svg%3E\")"
+};
+/* IC 值里的双引号转义成 &quot;:所有用法都嵌在 style="…" 属性里,裸双引号会提前截断属性导致图标不渲染;浏览器解码后 CSS 拿到的是合法的 url("…") */
+Object.keys(IC).forEach(function (k) { IC[k] = IC[k].replace(/"/g, '&quot;'); });
+function ic(name, cls) { return '<span class="ic ' + (cls || '') + '" style="background-image:' + IC[name] + '"></span>'; }
+
+var A = 'demo-assets/';
+var CATS = [
+  { key: 'repair',      name: '空调维修',     short: '维修' },
+  { key: 'coldRepair',  name: '冷库设备维修', short: '冷库' },
+  { key: 'chillerRepair', name: '水冷机组维修', short: '水冷' },
+  { key: 'clean',       name: '空调清洗',     short: '清洗' },
+  { key: 'fluoride',    name: '加氟利昂',     short: '加氟' },
+  { key: 'move',        name: '拆装移机',     short: '移机' }
+];
+var EQUIPS = [
+  { key: 'homeAc',      name: '家用空调',     scene: 'home',       tip: '挂机 / 柜机 / 风管机' },
+  { key: 'homeCentral', name: '家用中央空调', scene: 'home',       tip: '家用多联机 / 一拖多' },
+  { key: 'commAc',      name: '商用空调',     scene: 'commercial', tip: '商铺 / 办公柜挂机' },
+  { key: 'commCentral', name: '商用中央空调', scene: 'commercial', tip: '多联机 / 风管系统' },
+  { key: 'refrig',      name: '制冷设备',     scene: 'commercial', tip: '冷柜 / 展示柜 / 制冰机' },
+  { key: 'coldStore',   name: '冷库机组',     scene: 'commercial', tip: '保鲜库 / 冷冻库' },
+  { key: 'waterCool',   name: '水冷设备',     scene: 'commercial', tip: '冷却塔 / 水冷柜机' },
+  { key: 'chiller',     name: '水冷机组',     scene: 'commercial', tip: '冷水机组 / 螺杆机' }
+];
+var SYMPTOMS = ['不制冷', '漏水', '异响', '不开机', '遥控失灵'];
+var STATUS = {
+  published:       { label: '待接单',     color: '#E0761A' },
+  accepted:        { label: '师傅已接单', color: '#3D6FD1' },
+  pending_confirm: { label: '待确认完成', color: '#7A5AD8' },
+  completed:       { label: '已完成',     color: '#0E9868' },
+  cancelled:       { label: '已取消',     color: '#667180' }
+};
+var MASTER = { name: '王师傅', phone: '139****2517', rating: '4.9', done: 328 };
+var USER = { name: '李女士', phone: '138****6688' };
+
+/* ===================== 状态 ===================== */
+var seq = 100;
+function makeOrderNo() { return 'AC' + '202608301430' + String(seq++); }
+
+var state;
+function freshState() {
+  return {
+    balance: 260,
+    logs: [
+      { t: '充值', amt: 200, sub: '08-30 09:12 · 微信支付' },
+      { t: '充值', amt: 100, sub: '08-28 18:40 · 微信支付' },
+      { t: '接单扣费', amt: -20, sub: '08-28 18:36 · AC20260828183204417' }
+    ],
+    hall: [
+      { id: 'S1', catKey: 'clean', catName: '空调清洗', equip: '家用空调', scene: 'home', sceneLabel: '家用', fee: 20, urgent: '急 · 今天下午',
+        desc: '两台挂机深度清洗,用了5年从没洗过,想约明天上午,家里有老人拜托早点到',
+        addr: '市南区漳州二路48号', dist: '1.8', near: true, pub: '12分钟前' },
+      { id: 'S2', catKey: 'repair', catName: '空调维修', equip: '商用空调', scene: 'commercial', sceneLabel: '商用', fee: 300, urgent: '',
+        desc: '店铺柜机不制冷,出风正常,白天营业中,希望尽快上门检测',
+        addr: '市南区香港中路76号', dist: '2.6', near: false, pub: '28分钟前' }
+    ],
+    orders: [],   // 用户发出的单
+    detailU: null, detailM: null,
+    form: { cat: 'repair', equip: 'homeAc', desc: '格力挂机,开机后不制冷,外机风扇不转,用了大概5年', addr: '市南区宁夏路118号弘诚山庄', date: '9月2日(周三)', slot: '上午 (8-12点)', phone: USER.phone, name: USER.name, photos: 1 },
+    pageU: 'home', pageM: 'hall',
+    activeCat: 'all', sortBy: 'new',
+    pickedFee: null, stars: 5, reviewText: ''
+  };
+}
+
+/* ===================== 工具 ===================== */
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function catByKey(k) { for (var i = 0; i < CATS.length; i++) if (CATS[i].key === k) return CATS[i]; return CATS[0]; }
+function equipByKey(k) { for (var i = 0; i < EQUIPS.length; i++) if (EQUIPS[i].key === k) return EQUIPS[i]; return EQUIPS[0]; }
+function toast(msg) {
+  var t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(function () { t.classList.remove('show'); }, 2200);
+}
+function modal(html) {
+  $('modal-root').innerHTML = '<div class="modal-mask" onclick="if(event.target===this)closeModal()">' +
+    '<div class="modal" style="position:relative">' + html + '</div></div>';
+}
+function closeModal() { $('modal-root').innerHTML = ''; }
+function nowHM() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+function fmtBal() { return state.balance.toFixed(2).replace(/\.?0+$/, ''); }
+
+/* ===================== 导航 / tabBar ===================== */
+var NAVT = { home: '空调帮', publish: '发布维修需求', uDetail: '订单详情', orders: '我的订单',
+             hall: '接单大厅', mDetail: '订单详情', wallet: '我的钱包' };
+function renderNav() {
+  var nu = $('navUser'), nm = $('navMaster');
+  var hasBack = { publish: 1, uDetail: 1, orders: 1 };
+  nu.innerHTML = (hasBack[state.pageU] ? '<div class="back" style="background-image:' + IC.back + '" onclick="goU(\'back\')"></div>' : '') + esc(NAVT[state.pageU] || '');
+  var hasBackM = { mDetail: 1, wallet: 1 };
+  nm.innerHTML = (hasBackM[state.pageM] ? '<div class="back" style="background-image:' + IC.back + '" onclick="goM(\'back\')"></div>' : '') + esc(NAVT[state.pageM] || '');
+}
+/* tabBar 结构逐字还原 custom-tab-bar:首页 / 买空调 / 凸起CTA找师傅 / 师傅入驻(已认证师傅为「接单大厅」) / 我的 */
+function tabCta(onclick) {
+  return '<div class="tab-item tab-item--cta" onclick="' + onclick + '"><div class="tab-cta-btn"><div class="tab-cta-img">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+    '</div><div class="tab-cta-badge">免费</div></div><span class="tab-text tab-text--cta">找师傅</span></div>';
+}
+function tabUser() {
+  var p = state.pageU;
+  function t(icon, iconOn, label, page, active) {
+    return '<div class="tab-item" onclick="goU(\'' + page + '\')">' + ic(active ? iconOn : icon, 'tab-ic') +
+      '<span class="tab-text ' + (active ? 'tab-text-on' : '') + '">' + label + '</span></div>';
+  }
+  return t('tab-home', 'tab-home-on', '首页', 'home', p === 'home') +
+    '<div class="tab-item" onclick="toast(\'买空调·二手市场不在本演示范围\')">' + ic('tab-shop', 'tab-ic') +
+      '<span class="tab-text">买空调</span></div>' +
+    tabCta('goU(\'publish\')') +
+    '<div class="tab-item" onclick="toast(\'师傅入驻见右侧手机 → 接单大厅\')">' + ic('tab-hall', 'tab-ic') +
+      '<span class="tab-text">师傅入驻</span></div>' +
+    t('tab-user', 'tab-user-on', '我的', 'orders', p === 'orders');
+}
+function tabMaster() {
+  var p = state.pageM;
+  function t(icon, iconOn, label, page, active) {
+    return '<div class="tab-item" onclick="goM(\'' + page + '\')">' + ic(active ? iconOn : icon, 'tab-ic') +
+      '<span class="tab-text ' + (active ? 'tab-text-on' : '') + '">' + label + '</span></div>';
+  }
+  return '<div class="tab-item" onclick="toast(\'顾客端首页在左侧手机上演示\')">' + ic('tab-home', 'tab-ic') +
+      '<span class="tab-text">首页</span></div>' +
+    '<div class="tab-item" onclick="toast(\'买空调·二手市场不在本演示范围\')">' + ic('tab-shop', 'tab-ic') +
+      '<span class="tab-text">买空调</span></div>' +
+    tabCta('toast(\'发单在顾客端手机上操作\')') +
+    t('tab-hall', 'tab-hall-on', '接单大厅', 'hall', p === 'hall') +
+    t('tab-user', 'tab-user-on', '我的', 'wallet', p === 'wallet');
+}
+
+function goU(page) {
+  if (page === 'back') {
+    state.pageU = state.pageU === 'publish' ? 'home' : (state.detailU ? 'orders' : 'home');
+    if (state.pageU !== 'uDetail') state.detailU = null;
+  } else { state.pageU = page; }
+  render();
+}
+function goM(page) {
+  if (page === 'back') {
+    state.pageM = 'hall'; state.detailM = null;
+  } else { state.pageM = page; }
+  render();
+}
+
+/* ===================== 首页 ===================== */
+function pageHome() {
+  var myActive = state.orders.filter(function (o) { return o.status === 'published' || o.status === 'accepted' || o.status === 'pending_confirm'; });
+  var h = '<div class="page-home"><div class="hero">' +
+    '<img class="hero-bg" src="' + A + 'hero-home.jpg" alt="">' +
+    '<div class="hero-scrim"></div>' +
+    '<div class="hero-inner">' +
+      '<div class="hero-top-bar"><div class="role-tabs">' +
+        '<div class="role-tab on">找师傅<span class="role-line"></span></div>' +
+        '<div class="role-tab" onclick="toast(\'师傅入驻见右侧手机 → 接单大厅\')">我是师傅</div>' +
+      '</div><div class="trust-badge"><span class="trust-dot"></span>价格透明·当面谈价</div></div>' +
+      '<div class="hero-hi">您好,需要师傅上门吗?</div>' +
+      '<div class="hero-brand">空调帮</div>' +
+      '<div class="hero-slogan">专业制冷维修 · 免平台中介费 · 师傅直接到家</div>' +
+      '<div class="search-card" onclick="goU(\'publish\')"><div class="search-box">' +
+        '<div class="city-tag"><span class="city-text">青岛/同城</span>' + ic('caret-d', 'ic-xs') + '</div>' +
+        '<div class="search-divider"></div>' + ic('search-o', 'ic-sm') +
+        '<span class="search-ph flex-1">空调维修、清洗、加氟…</span>' +
+        '<span class="search-btn">发单</span>' +
+      '</div></div>' +
+    '</div></div><div class="home-body">';
+
+  h += '<div class="promo-banner" onclick="goU(\'publish\')"><div class="promo-left">' +
+    '<div class="promo-tag">平台特惠</div><div class="promo-title">空调维修/清洗 免费快速上门</div>' +
+    '<div class="promo-desc">不抽成零加价 · 满意后再付款</div></div>' +
+    '<div class="promo-right"><div class="promo-coupon"><span class="coupon-unit">¥</span><span class="coupon-val">0</span><span class="coupon-txt">元发单</span></div>' +
+    '<div class="promo-btn">立即发单</div></div></div>';
+
+  h += '<div class="section-head"><div class="section-title">全上品类服务</div></div><div class="cat-grid">';
+  CATS.forEach(function (c) {
+    h += '<div class="cat-cell" onclick="openPublish(\'' + c.key + '\')">' +
+      '<div class="cat-ic" style="background-image:url(' + A + 'cat-' + c.key + '.png)"></div>' +
+      '<div class="cat-name">' + c.name + '</div></div>';
+  });
+  h += '</div>';
+
+  var hots = [
+    { k: 'clean', bg: 'hot-img--clean', img: 'svc-clean.png', name: '挂式空调深度清洗', sub: '全拆消毒/高压除垢', p: '68', s: '98' },
+    { k: 'fluoride', bg: 'hot-img--fluoride', img: 'svc-fluoride.png', name: '空调加氟/测压', sub: '环保制冷剂/定量充注', p: '40', s: '59' },
+    { k: 'repair', bg: 'hot-img--repair', img: 'svc-repair.png', name: '不制冷/主板检修', sub: '精准查漏/原厂配件', p: '30', s: '49' },
+    { k: 'move', bg: 'hot-img--move', img: 'svc-move.png', name: '空调移机/拆装', sub: '包收氟/包固定/打孔', p: '120', s: '169' }
+  ];
+  h += '<div class="hot-panel"><div class="hot-panel-head" onclick="goU(\'publish\')">' +
+    '<div class="hot-panel-title">热门空调服务<span class="hot-panel-accent">快速上门</span></div>' +
+    '<div class="hot-panel-more">全部服务' + ic('chev-o', 'ic-xs') + '</div></div><div class="hot-grid">';
+  hots.forEach(function (x, i) {
+    h += '<div class="hot-cell ' + (i % 2 === 0 ? 'hot-cell--br ' : '') + (i < 2 ? 'hot-cell--bb' : '') + '" onclick="openPublish(\'' + x.k + '\')">' +
+      '<div class="hot-img-box ' + x.bg + '"><div class="hot-badge">平台特惠</div><img class="hot-img" src="' + A + x.img + '" alt=""></div>' +
+      '<div class="hot-name">' + x.name + '</div><div class="hot-sub">' + x.sub + '</div>' +
+      '<div class="hot-bottom"><div class="hot-price"><span class="hot-p-sym">¥</span><span class="hot-p-val">' + x.p + '</span><span class="hot-p-unit">起</span><span class="hot-p-strike">¥' + x.s + '</span></div>' +
+      '<div class="hot-action">预约</div></div></div>';
+  });
+  h += '</div><div class="hot-note">市场参考价 · 实际以上门检测当面报价为准</div></div>';
+
+  h += '<div class="section-head mt16" style="margin-top:12px"><div class="section-title">活动专区<span class="section-accent2">优惠立享</span></div></div>' +
+    '<div class="act-card act-card--mint" onclick="openPublish(\'clean\')"><div class="act-info">' +
+    '<div class="act-title">空调深度清洗特惠</div><div class="act-sub">挂机 ¥68 起 · 全拆高温消毒</div><div class="act-cta">立即预约</div></div>' +
+    '<img class="act-img" src="' + A + 'act-clean.png" alt=""></div>' +
+    '<div class="act-card act-card--warm" onclick="goU(\'publish\')"><div class="act-info">' +
+    '<div class="act-title">0 元发单 · 免费报价</div><div class="act-sub">师傅直接抢单 · 满意后再付款</div><div class="act-cta act-cta--blue">免费发单</div></div>' +
+    '<img class="act-img" src="' + A + 'act-publish.png" alt=""></div>';
+
+  if (myActive.length) {
+    h += '<div class="sec-label">我发的单</div>';
+    myActive.forEach(function (o) {
+      h += '<div class="order-strip" onclick="openDetailU(\'' + o.id + '\')">' +
+        '<span class="strip-dot" style="background:' + STATUS[o.status].color + '"></span>' +
+        '<span class="strip-title">' + o.catName + ' · ' + STATUS[o.status].label + '</span>' +
+        '<span class="strip-time flex-1">' + o.expectTime + '</span>' + ic('chev', 'ic-sm') + '</div>';
+    });
+  }
+
+  h += '<div class="trust-bar">' +
+    '<div class="trust-item">' + ic('shield-f', 'trust-ic') + '师傅实名认证</div>' +
+    '<div class="trust-item">' + ic('doc-f', 'trust-ic') + '评价真实留痕</div>' +
+    '<div class="trust-item">' + ic('clock', 'trust-ic') + '进度随时可查</div></div>';
+
+  h += '<div class="dual-row">' +
+    '<div class="dual-card dual-card--shop" onclick="toast(\'买空调·二手市场不在本演示范围\')">' +
+    '<img class="dual-ic" src="' + A + 'entry-shop.png" alt=""><div class="dual-t">买空调 · 二手市场</div>' +
+    '<div class="dual-s">师傅直卖 · 当面验机</div><div class="dual-go dual-go--shop">去逛逛' + ic('chev-o', 'ic-xs') + '</div></div>' +
+    '<div class="dual-card dual-card--blue" onclick="toast(\'已在右侧手机打开师傅端 →\')">' +
+    '<img class="dual-ic" src="' + A + 'entry-master.png" alt=""><div class="dual-t">我是师傅</div>' +
+    '<div class="dual-s">零抽成 · 结款到手快</div><div class="dual-go dual-go--blue">去接单' + ic('chev-b', 'ic-xs') + '</div></div></div>';
+
+  h += '<div class="trust-guarantee-card">' +
+    '<div class="trust-g-item">' + ic('shield-f', 'trust-g-ic') + '<div class="trust-g-t">实名认证</div><div class="trust-g-s">持证师傅严选</div></div>' +
+    '<div class="trust-g-item">' + ic('clock', 'trust-g-ic') + '<div class="trust-g-t">准时上门</div><div class="trust-g-s">爽约快速响应</div></div>' +
+    '<div class="trust-g-item">' + ic('wallet', 'trust-g-ic') + '<div class="trust-g-t">透明报价</div><div class="trust-g-s">当面议价无隐形</div></div>' +
+    '<div class="trust-g-item"><span class="ic trust-g-ic" style="background-image:' + IC['star-on'] + '"></span><div class="trust-g-t">售后质保</div><div class="trust-g-s">官方客服跟进</div></div></div>';
+
+  h += '</div></div>';
+  return h;
+}
+
+/* ===================== 我的订单(列表) ===================== */
+function pageOrders() {
+  var h = '<div class="od-wrap" style="padding-top:4px">';
+  if (!state.orders.length) {
+    h += '<div class="empty-box"><img class="empty-img" src="' + A + 'empty-orders.png" alt="">还没有发过订单<br><span class="text-sub">点下方「找师傅」免费发单</span></div>';
+  } else {
+    state.orders.slice().reverse().forEach(function (o) {
+      h += '<div class="card o-card" onclick="openDetailU(\'' + o.id + '\')">' +
+        '<div class="row" style="align-items:flex-start"><div class="flex-1">' +
+        '<div class="row" style="gap:6px;flex-wrap:wrap"><span class="o-title" style="font-size:15px">' + o.catName + '</span>' +
+        '<span class="o-badge ' + (o.scene === 'commercial' ? 'o-badge-hot' : 'o-badge-plain') + '">' + o.sceneLabel + '</span>' +
+        '<span class="o-badge o-badge-plain">' + STATUS[o.status].label + '</span></div>' +
+        '<div class="o-desc">' + esc(o.desc) + '</div></div>' +
+        '<div class="o-dist"><div class="o-dist-num" style="font-size:15px;color:' + STATUS[o.status].color + '">' + STATUS[o.status].label.slice(0, 1) + '</div></div>' +
+        '</div><div class="o-foot"><span class="o-meta"><span class="o-meta-addr">' + esc(o.addr) + '</span> · ' + o.expectTime + '</span>' +
+        '<button class="btn-cta btn-cta-sm" onclick="event.stopPropagation();openDetailU(\'' + o.id + '\')">查看详情</button></div></div>';
+    });
+  }
+  h += '</div>';
+  return h;
+}
+
+/* ===================== 发单页 ===================== */
+function openPublish(catKey) {
+  state.form.cat = catKey || state.form.cat;
+  state.pageU = 'publish';
+  render();
+}
+function toggleCat(key) { state.form.cat = state.form.cat === key ? '' : key; renderU(); }
+function pickEquip(key) { state.form.equip = key; renderU(); }
+function addSym(s) {
+  if (state.form.desc.indexOf(s) === -1) state.form.desc += (state.form.desc ? ',' : '') + s;
+  renderU();
+}
+function inputDesc(v) { state.form.desc = v; }
+function submitOrder() {
+  var f = state.form;
+  if (!f.cat) return toast('请选择服务类型(可多选)');
+  if (!f.equip) return toast('请选择要修的设备');
+  if (!f.desc || f.desc.length < 5) return toast('请描述故障情况(至少5个字)');
+  if (!f.addr) return toast('请选择上门地址');
+  if (!f.date || !f.slot) return toast('请选择期望上门时间');
+  if (!f.phone) return toast('请填写正确的手机号');
+  var eq = equipByKey(f.equip), cat = catByKey(f.cat);
+  var o = {
+    id: 'U' + Date.now(), orderNo: makeOrderNo(),
+    catKey: f.cat, catName: cat.name, equip: eq.name, scene: eq.scene,
+    sceneLabel: eq.scene === 'commercial' ? '商用' : '家用', fee: eq.scene === 'commercial' ? 300 : 20,
+    desc: f.desc, addr: '青岛市' + f.addr, date: f.date, slotShort: f.slot.indexOf('上午') > -1 ? '上午' : (f.slot.indexOf('下午') > -1 ? '下午' : '晚上'),
+    expectTime: f.date + ' ' + (f.slot.indexOf('上午') > -1 ? '上午' : (f.slot.indexOf('下午') > -1 ? '下午' : '晚上')),
+    status: 'published', publishedAt: nowHM(),
+    timeline: { pub: nowHM(), accept: '', finish: '', confirm: '' },
+    master: null, reviewed: false, urgent: '急 · 今天' + (f.slot.indexOf('上午') > -1 ? '上午' : (f.slot.indexOf('下午') > -1 ? '下午' : '晚上')),
+    photos: f.photos
+  };
+  state.orders.push(o);
+  state.pageU = 'home';
+  render();
+  modal('<div class="modal-title">发布成功</div><div class="modal-body">订单已进入接单大厅,同城认证师傅会立刻看到你的订单。当前城市做这个品类的师傅还很少时,接单可能稍慢,请耐心等待。</div>' +
+    '<div class="modal-btns"><button class="modal-btn modal-btn--main" onclick="closeModal();openDetailU(\'' + o.id + '\')">查看订单</button></div>');
+}
+
+function pagePublish() {
+  var f = state.form;
+  var h = '<div><div class="pub-trust">' +
+    '<span class="pub-trust-item"><span class="pub-trust-ic" style="background-image:' + IC['check-w'] + '"></span>免费发布</span><span class="pub-trust-sep">·</span>' +
+    '<span class="pub-trust-item"><span class="pub-trust-ic" style="background-image:' + IC['check-w'] + '"></span>师傅快速响应</span><span class="pub-trust-sep">·</span>' +
+    '<span class="pub-trust-item"><span class="pub-trust-ic" style="background-image:' + IC['check-w'] + '"></span>当面谈价满意再修</span></div>' +
+    '<div class="pub-body"><div class="card">';
+  h += '<div class="sec-head"><div class="sec-title">需要什么服务?(可多选)</div><div class="sec-tip">按需组合</div></div><div class="svc-row">';
+  CATS.forEach(function (c) {
+    var on = f.cat === c.key;
+    h += '<div class="svc-cell ' + (on ? 'svc-on' : '') + '" onclick="toggleCat(\'' + c.key + '\')">' +
+      '<div class="svc-ic" style="background-image:url(' + A + 'cat-' + c.key + '.png)"></div>' +
+      '<span class="svc-name">' + c.short + '</span>' +
+      (on ? '<div class="svc-check" style="background-image:' + IC['check-w'] + '"></div>' : '') + '</div>';
+  });
+  h += '</div><div class="divider"></div>';
+  h += '<div class="sec-head"><div class="sec-title">修什么设备?</div><div class="sec-tip">单选</div></div><div class="equip-grid">';
+  EQUIPS.forEach(function (e) {
+    var on = f.equip === e.key;
+    h += '<div class="scene-cell ' + (on ? 'scene-on' : '') + '" onclick="pickEquip(\'' + e.key + '\')">' +
+      '<span class="scene-name">' + e.name + '</span><span class="scene-sub">' + e.tip + '</span>' +
+      (on ? '<div class="svc-check" style="background-image:' + IC['check-w'] + '"></div>' : '') + '</div>';
+  });
+  h += '</div><div class="divider"></div>';
+  h += '<div class="sec-head"><div class="sec-title">空调怎么了?</div><div class="sec-tip">支持点选标签</div></div>' +
+    '<textarea class="form-textarea mt16" maxlength="500" oninput="inputDesc(this.value)" placeholder="例: 格力挂机,开机后不制冷,外机风扇不转,用了大概5年">' + esc(f.desc) + '</textarea>' +
+    '<div class="sym-row">';
+  SYMPTOMS.forEach(function (s) { h += '<span class="sym-chip" onclick="addSym(\'' + s + '\')">+ ' + s + '</span>'; });
+  h += '</div><div class="photo-grid"><img class="photo-thumb" src="' + A + 'svc-repair.png" style="object-fit:contain;background:#FCF6F2" alt="">' +
+    '<div class="photo-add" onclick="toast(\'演示环境不支持拍照,已预置示例照片\')"><span class="ic" style="background-image:' + IC['plus-g'] + '"></span><span class="photo-add-lb">拍一张 ' + f.photos + '/6</span></div></div>';
+  h += '</div><div class="card list-card">' +
+    '<div class="li"><span class="li-dot li-dot-addr"></span><div class="flex-1"><span class="li-main">' + esc(f.addr) + '</span></div>' + ic('chev', 'ic-sm') + '</div>' +
+    '<div class="li"><span class="li-dot" style="background:transparent"></span><span class="text-sub flex-1">门牌号等补充信息(选填,仅接单师傅可见)</span></div>' +
+    '<div class="li"><span class="li-dot li-dot-time"></span><span class="li-main flex-1">' + f.date + '</span><span class="li-main">' + f.slot + '</span>' + ic('chev', 'ic-sm') + '</div>' +
+    '<div class="li"><span class="li-dot li-dot-phone"></span><span class="li-main flex-1">' + f.phone + '</span></div>' +
+    '<div class="li"><span class="li-dot li-dot-phone"></span><span class="li-main flex-1">' + f.name + '(选填)</span><span class="li-note">仅接单师傅可见</span></div>' +
+    '</div></div>' +
+    '<div class="sticky-bar"><button class="btn-cta" onclick="submitOrder()">立即免费发单</button>' +
+    '<div class="sticky-note">费用与师傅当面结算 · 平台不代收中介费</div></div></div>';
+  return h;
+}
+
+/* ===================== 订单详情(双视角) ===================== */
+function timelineOf(o) {
+  var nodes = [
+    { label: '发布订单', time: o.timeline.pub },
+    { label: '师傅接单', time: o.timeline.accept },
+    { label: '维修完成', time: o.timeline.finish },
+    { label: '确认完成', time: o.timeline.confirm }
+  ];
+  var curIdx = { published: -1, accepted: 1, pending_confirm: 2, completed: 4, cancelled: -2 }[o.status];
+  return nodes.map(function (n, i) {
+    var st = 'future';
+    if (o.status === 'cancelled') { st = i <= 0 ? 'done' : 'future'; }
+    else if (i < curIdx) st = 'done';
+    else if (i === curIdx) st = 'current';
+    if (o.status === 'completed') st = 'done';
+    return '<div class="tl-node tl-node--' + st + '"><div class="tl-dot"><div class="tl-pulse"></div></div>' +
+      '<div class="tl-label">' + n.label + '</div><div class="tl-time">' + (n.time || '') + '</div></div>';
+  }).join('');
+}
+
+function orderCardInner(o) {
+  return '<div class="row-between"><div class="text-strong scene-head">' + o.catName +
+    '<span class="scene-tag ' + (o.scene === 'commercial' ? 'scene-tag--hot' : '') + '">' + o.sceneLabel + '</span></div>' +
+    '<span class="text-sub">' + o.orderNo + '</span></div>' +
+    '<div class="mt16" style="font-size:13px;color:var(--n700);line-height:1.6">' + esc(o.desc) + '</div>' +
+    (o.photos ? '<div class="photo-grid"><img class="photo-thumb" src="' + A + 'svc-repair.png" style="object-fit:contain;background:#FCF6F2" alt=""></div>' : '') +
+    '<div class="info-row mt16"><span class="info-label">设备</span>' + o.equip + '</div>' +
+    '<div class="info-row"><span class="info-label">上门时间</span>' + o.expectTime + '</div>' +
+    '<div class="order-map"><div class="map-grid"></div><div class="map-road"></div><div class="map-road2"></div>' +
+    '<img class="map-pin" src="' + A + 'pin-brand.png" alt=""></div>' +
+    '<div class="info-row"><span class="info-label">地址</span><span class="flex-1">' + esc(o.addr) + '</span></div>' +
+    '<div class="info-row"><span class="info-label">发布时间</span>今天 ' + o.publishedAt + '</div>';
+}
+
+function pageUDetail() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailU; })[0];
+  if (!o) return '<div class="empty-box">订单不存在</div>';
+  var h = '<div class="od-wrap">';
+  h += '<div class="status-banner"><div class="status-label"><span class="status-dot" style="background:' + STATUS[o.status].color + '"></span>' + STATUS[o.status].label + '</div>';
+  if (o.status === 'published') h += '<div class="status-sub">等待同城师傅接单,接单后会通知您</div>';
+  if (o.status === 'accepted') h += '<div class="status-sub">师傅已接单,可电话联系约定上门</div>';
+  if (o.status === 'pending_confirm') h += '<div class="status-sub">师傅已标记完成,请确认维修结果</div>';
+  if (o.status === 'completed') h += '<div class="status-sub">维修已完成,费用已与师傅当面结清</div>';
+  if (o.status === 'cancelled') h += '<div class="status-sub">订单已取消</div>';
+  h += '</div>';
+
+  if (o.status === 'published') {
+    h += '<div class="radar-banner"><div class="radar-disc">' +
+      '<div class="radar-ring"></div><div class="radar-ring radar-ring--2"></div><div class="radar-ring radar-ring--3"></div>' +
+      '<div class="radar-core"><div class="cat-ic" style="background-image:url(' + A + 'cat-' + o.catKey + '.png)"></div></div></div>' +
+      '<div class="radar-title">正在呼叫附近师傅</div><div class="radar-sub">接单后微信通知你</div></div>';
+  } else {
+    h += '<div class="card"><div class="tl">' + timelineOf(o) + '</div></div>';
+  }
+
+  h += '<div class="card">' + orderCardInner(o) + '</div>';
+
+  if (o.master) {
+    h += '<div class="trust-card"><div class="trust-avatar">' + MASTER.name.charAt(0) + '</div><div class="trust-main">' +
+      '<div class="trust-name-row"><span class="trust-name">' + MASTER.name + '</span><span class="trust-badge">平台师傅</span></div>' +
+      '<div class="trust-stats"><span class="ic trust-star" style="background-image:' + IC['star-on'] + '"></span>' +
+      '<span class="trust-rating">' + MASTER.rating + '</span><span class="trust-done">· 完成 ' + MASTER.done + ' 单</span></div></div>' +
+      '<div class="trust-call" onclick="toast(\'演示环境不支持拨打,师傅电话 ' + MASTER.phone + '\')">' + ic('phone-o') + '</div></div>';
+  }
+
+  if (o.status === 'completed' && !o.reviewed) {
+    h += '<div class="card"><div class="card-title">评价本次服务</div><div class="stars-input">';
+    for (var i = 1; i <= 5; i++) {
+      h += '<span class="ic star-tap" style="background-image:' + IC[state.stars >= i ? 'star-on' : 'star-off'] + '" onclick="setStars(' + i + ')"></span>';
+    }
+    h += '</div><textarea class="form-textarea mt16" maxlength="300" oninput="state.reviewText=this.value" placeholder="师傅服务怎么样?说说你的体验(选填)"></textarea>' +
+      '<button class="btn-primary mt16" style="width:100%" onclick="submitReview()">提交评价</button></div>';
+  }
+  if (o.status === 'completed' && o.reviewed) {
+    h += '<div class="card"><div class="card-title">用户评价</div><div class="stars-static">';
+    for (var j = 1; j <= 5; j++) h += '<span class="ic star-s" style="background-image:' + IC[o.stars >= j ? 'star-on' : 'star-off'] + '"></span>';
+    h += '</div>' + (o.reviewContent ? '<div class="mt8" style="font-size:13px;color:var(--n700)">' + esc(o.reviewContent) + '</div>' : '') + '</div>';
+  }
+
+  h += '<div class="action-panel"><div class="action-row">';
+  if (o.status === 'published') h += '<button class="btn-danger-ghost" onclick="cancelOrder()">取消订单</button>';
+  if (o.status === 'pending_confirm') h += '<button class="btn-primary" onclick="confirmComplete()">确认完成</button>';
+  h += '</div></div><div style="height:70px"></div></div>';
+  return h;
+}
+
+function pageMDetail() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailM; })[0];
+  if (!o) return '<div class="empty-box">订单不存在</div>';
+  var h = '<div class="od-wrap">';
+  h += '<div class="status-banner"><div class="status-label"><span class="status-dot" style="background:' + STATUS[o.status].color + '"></span>' + STATUS[o.status].label + '</div>';
+  if (o.status === 'accepted') h += '<div class="status-sub">联系客户确认故障,上门维修后点「维修已完成」</div>';
+  if (o.status === 'pending_confirm') h += '<div class="status-sub">已提交完成,等待用户确认(72小时未确认将自动完成)</div>';
+  if (o.status === 'completed') h += '<div class="status-sub">客户已确认,维修费已当面结清</div>';
+  h += '</div>';
+
+  if (o.status !== 'published') h += '<div class="card"><div class="tl">' + timelineOf(o) + '</div></div>';
+
+  h += '<div class="card">' + orderCardInner(o) + '</div>';
+
+  h += '<div class="card contact-card"><div class="contact-avatar">' + USER.name.charAt(0) + '</div><div class="flex-1">' +
+    '<div class="contact-name">' + USER.name + '</div><div class="contact-phone">' + USER.phone + '</div></div>' +
+    '<div class="contact-call" onclick="toast(\'演示环境不支持拨打,客户电话 ' + USER.phone + '\')">' + ic('phone-o') + '</div></div>';
+
+  if (o.status === 'pending_confirm') {
+    h += '<div class="card"><div class="text-strong">已提交完成,等待用户确认</div>' +
+      '<div class="text-sub mt8">用户确认后订单完成;72小时未确认将自动完成。误点了可撤销。</div></div>';
+  }
+
+  h += '<div class="action-panel"><div class="action-row">';
+  if (o.status === 'accepted') h += '<button class="btn-primary" onclick="finishOrder()">维修已完成</button>';
+  if (o.status === 'pending_confirm') h += '<button class="btn-ghost" style="flex:1" onclick="undoFinish()">撤销完成</button>';
+  h += '</div></div><div style="height:70px"></div></div>';
+  return h;
+}
+
+/* ===================== 接单大厅 ===================== */
+function switchCat(k) { state.activeCat = k; renderM(); }
+function toggleSort() { state.sortBy = state.sortBy === 'new' ? 'distance' : 'new'; renderM(); }
+
+function pageHall() {
+  var lowBal = state.balance < 300;
+  var myActive = state.orders.filter(function (o) { return o.master && (o.status === 'accepted' || o.status === 'pending_confirm'); });
+  var h = '<div class="hall-page"><div class="hall-head">' +
+    '<div class="gold-bar' + (lowBal ? '' : '') + '">' + ic('wallet', 'ic-sm') +
+    '<div class="flex-1"><div class="gold-title">钱包余额 ¥' + fmtBal() + '</div>' +
+    '<div class="gold-sub">接单自动扣服务费:家用 ¥20,商用 ¥300</div></div>' +
+    '<button class="gold-btn" onclick="goM(\'wallet\')">充值</button></div>' +
+    '<div class="filter-row"><div class="cat-tabs-wrap"><div class="cat-tabs">';
+  var tabs = [{ key: 'all', name: '全部' }].concat(CATS.map(function (c) { return { key: c.key, name: c.short }; }));
+  tabs.forEach(function (t) {
+    h += '<div class="cat-tab ' + (state.activeCat === t.key ? 'on' : '') + '" onclick="switchCat(\'' + t.key + '\')">' +
+      '<span class="cat-tab-t">' + t.name + '</span><span class="cat-tab-line ' + (state.activeCat === t.key ? '' : 'cat-tab-line--ghost') + '"></span></div>';
+  });
+  h += '</div></div><div class="sort-toggle" onclick="toggleSort()">' + (state.sortBy === 'distance' ? '距离优先' : '最新优先') + ic('caret-d', 'ic-xs') + '</div></div></div>';
+
+  h += '<div class="hall-body">';
+  if (myActive.length) {
+    h += '<div class="sec-label" style="margin-top:6px">我接的单</div>';
+    myActive.forEach(function (o) {
+      h += '<div class="my-strip" onclick="openDetailM(\'' + o.id + '\')">' +
+        '<span class="strip-dot" style="background:' + STATUS[o.status].color + '"></span>' +
+        '<span class="strip-title">' + o.catName + ' · ' + STATUS[o.status].label + '</span>' +
+        '<span class="strip-time flex-1">' + o.expectTime + '</span>' + ic('chev', 'ic-sm') + '</div>';
+    });
+  }
+
+  h += '<div class="card" style="margin-top:12px;padding:0"><button class="btn-ghost subs-btn" style="border-radius:12px 12px 0 0" onclick="toast(\'已开启演示提醒:新订单会即时出现在大厅\')">' + ic('bell-o', 'ic-sm') + ' 开启新订单提醒</button></div>';
+
+  var userPub = state.orders.filter(function (o) { return o.status === 'published'; })
+    .map(function (o) { o.pub = '刚刚发布'; o.dist = o.dist || '2.2'; o.near = false; return o; });
+  var list = userPub.concat(state.hall).filter(function (o) { return state.activeCat === 'all' || o.catKey === state.activeCat; });
+  if (state.sortBy === 'distance') list = list.slice().sort(function (a, b) { return parseFloat(a.dist) - parseFloat(b.dist); });
+
+  if (!list.length) {
+    h += '<div class="empty-box"><img class="empty-img" src="' + A + 'empty-orders.png" alt="">青岛暂时没有待接订单<span class="text-sub" style="display:block">左侧手机发一单试试 →</span></div>';
+  } else {
+    list.forEach(function (o) {
+      h += '<div class="card o-card">' +
+        '<div class="row" style="align-items:flex-start"><div class="flex-1">' +
+        '<div class="row" style="gap:6px;flex-wrap:wrap"><span class="o-title">' + o.catName + '</span>' +
+        '<span class="o-badge ' + (o.scene === 'commercial' ? 'o-badge-hot' : 'o-badge-plain') + '">' + o.sceneLabel + '</span>' +
+        (o.urgent ? '<span class="o-badge">' + o.urgent + '</span>' : '') + '</div>' +
+        '<div class="o-desc">' + esc(o.desc) + '</div></div>' +
+        '<div class="o-dist"><div class="o-dist-num ' + (o.near ? 'near' : '') + '">' + o.dist + '<span class="o-dist-unit"> km</span></div><div class="o-dist-lb">距你</div></div></div>' +
+        '<div class="o-foot"><span class="o-meta"><span class="o-meta-addr">' + esc(o.addr) + '</span> · ' + o.pub + '</span>' +
+        '<button class="btn-cta btn-cta-sm" onclick="grabOrder(\'' + o.id + '\')">抢单 ¥' + o.fee + '</button></div></div>';
+    });
+    h += '<div class="text-sub list-end" style="text-align:center;padding:10px 0 0">没有更多了</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+/* ===================== 抢单 / 状态流转 ===================== */
+function grabOrder(id) {
+  var o = state.hall.filter(function (x) { return x.id === id; })
+    .concat(state.orders.filter(function (x) { return x.status === 'published' && x.id === id; }))[0];
+  if (!o) return toast('手慢了,该订单已被接走或已取消');
+  var lowBal = state.balance < o.fee;
+  modal('<div class="modal-title">确认接' + o.equip + '单</div>' +
+    '<div class="modal-body">接单将从钱包扣除服务费 <b>¥' + o.fee + '</b>(当前余额 ¥' + fmtBal() + '),抢不到自动退回。</div>' +
+    '<div class="modal-btns">' +
+    '<button class="modal-btn modal-btn--sub" onclick="closeModal()">再想想</button>' +
+    (lowBal
+      ? '<button class="modal-btn modal-btn--main" onclick="closeModal();goM(\'wallet\')">去充值</button>'
+      : '<button class="modal-btn modal-btn--main" onclick="doGrab(\'' + id + '\')">确认接单</button>') +
+    '</div>');
+}
+function doGrab(id) {
+  var hidx = -1;
+  for (var i = 0; i < state.hall.length; i++) if (state.hall[i].id === id) hidx = i;
+  var o = state.orders.filter(function (x) { return x.id === id; })[0] ||
+          (hidx > -1 ? state.hall[hidx] : null);
+  if (!o) { closeModal(); return toast('手慢了,该订单已被接走或已取消'); }
+  if (hidx > -1) state.hall.splice(hidx, 1);
+  state.balance -= o.fee;
+  state.logs.unshift({ t: '接单扣费', amt: -o.fee, sub: '今天 ' + nowHM() + ' · ' + (o.orderNo || '大厅订单') });
+  var target = state.orders.filter(function (x) { return x.id === id; })[0];
+  if (target) {
+    target.status = 'accepted';
+    target.master = MASTER;
+    target.timeline.accept = nowHM();
+  }
+  closeModal();
+  state.pageM = 'hall';
+  render();
+  modal('<div class="modal-title">抢单成功</div><div class="modal-body">已扣接单费 ¥' + o.fee + '。请尽快联系客户约定上门:<br><b>' + USER.phone + ' (' + USER.name + ')</b></div>' +
+    '<div class="modal-btns"><button class="modal-btn modal-btn--sub" onclick="closeModal()">知道了</button>' +
+    '<button class="modal-btn modal-btn--main" onclick="closeModal();openDetailM(\'' + id + '\')">查看订单</button></div>');
+}
+function openDetailU(id) { state.detailU = id; state.pageU = 'uDetail'; render(); }
+function openDetailM(id) { state.detailM = id; state.pageM = 'mDetail'; render(); }
+
+function cancelOrder() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailU; })[0];
+  if (!o) return;
+  modal('<div class="modal-title">取消订单</div><div class="modal-body">确定取消这个订单吗?取消后师傅将无法再接单。</div>' +
+    '<div class="modal-btns"><button class="modal-btn modal-btn--sub" onclick="closeModal()">再想想</button>' +
+    '<button class="modal-btn modal-btn--main" style="background:var(--danger)" onclick="doCancel()">确定取消</button></div>');
+}
+function doCancel() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailU; })[0];
+  if (o) { o.status = 'cancelled'; o.timeline.confirm = nowHM(); }
+  state.hall = state.hall.filter(function (x) { return x.id !== (o && o.id); });
+  closeModal(); toast('订单已取消'); render();
+}
+function finishOrder() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailM; })[0];
+  if (!o) return;
+  o.status = 'pending_confirm'; o.timeline.finish = nowHM();
+  toast('已提交完成,等待用户确认'); render();
+}
+function undoFinish() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailM; })[0];
+  if (!o) return;
+  o.status = 'accepted'; o.timeline.finish = '';
+  toast('已撤销完成'); render();
+}
+function confirmComplete() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailU; })[0];
+  if (!o) return;
+  o.status = 'completed'; o.timeline.confirm = nowHM();
+  state.stars = 5; state.reviewText = '';
+  toast('订单已完成,别忘了评价师傅'); render();
+}
+function setStars(n) { state.stars = n; renderU(); }
+function submitReview() {
+  var o = state.orders.filter(function (x) { return x.id === state.detailU; })[0];
+  if (!o) return;
+  o.reviewed = true; o.stars = state.stars; o.reviewContent = state.reviewText;
+  toast('感谢评价'); render();
+}
+
+/* ===================== 钱包 ===================== */
+function pickFee(f) { state.pickedFee = f; renderM(); }
+function doRecharge() {
+  if (!state.pickedFee) return toast('请先选择充值金额');
+  state.balance += state.pickedFee;
+  state.logs.unshift({ t: '充值', amt: state.pickedFee, sub: '今天 ' + nowHM() + ' · 微信支付(演示)' });
+  var f = state.pickedFee; state.pickedFee = null;
+  toast('充值成功 ¥' + f); renderM();
+}
+function pageWallet() {
+  var h = '<div class="wallet-page">' +
+    '<div class="w-hero"><div class="flex-1"><div class="w-hero-label">钱包余额(元)</div>' +
+    '<div class="w-hero-num">¥' + fmtBal() + '</div>' +
+    '<div class="w-hero-sub">接单自动扣服务费:家用单 ¥20,商用单 ¥300</div></div>' +
+    '<img class="w-hero-img" src="' + A + 'wallet-hero.png" alt=""></div>';
+  h += '<div class="card"><div class="sec-title" style="font-size:15px;font-weight:600">选择充值金额</div><div class="w-opts">';
+  [50, 100, 200, 500].forEach(function (f) {
+    h += '<div class="w-opt ' + (state.pickedFee === f ? 'w-opt-on' : '') + '" onclick="pickFee(' + f + ')"><span class="w-opt-num">¥' + f + '</span></div>';
+  });
+  h += '</div><button class="btn-cta mt24" onclick="doRecharge()">立即充值</button>' +
+    '<div class="w-service"><span class="text-sub">无法在线充值?请联系客服人工充值:</span><br><span class="w-service-phone">4006099869</span></div></div>';
+  h += '<div class="card"><div class="card-title">账单明细</div>';
+  if (!state.logs.length) h += '<div class="w-empty">还没有账单记录</div>';
+  state.logs.forEach(function (l) {
+    h += '<div class="w-log"><div class="flex-1"><div class="w-log-t">' + l.t + '</div><div class="w-log-sub">' + l.sub + '</div></div>' +
+      '<div class="w-log-amt ' + (l.amt >= 0 ? 'w-amt-pos' : '') + '">' + (l.amt >= 0 ? '+' : '-') + '¥' + Math.abs(l.amt) + '</div></div>';
+  });
+  h += '</div></div>';
+  return h;
+}
+
+/* ===================== 渲染 ===================== */
+function renderU() {
+  $('navUser').innerHTML = (function () {
+    var hasBack = { publish: 1, uDetail: 1, orders: 1 };
+    return (hasBack[state.pageU] ? '<div class="back" style="background-image:' + IC.back + '" onclick="goU(\'back\')"></div>' : '') + esc(NAVT[state.pageU] || '');
+  })();
+  $('tabUser').innerHTML = tabUser();
+  var page = { home: pageHome, publish: pagePublish, orders: pageOrders, uDetail: pageUDetail }[state.pageU];
+  $('scrUser').innerHTML = '<div class="screen-pad">' + page() + '</div>';
+  $('scrUser').scrollTop = 0;
+}
+function renderM() {
+  $('navMaster').innerHTML = (function () {
+    var hasBackM = { mDetail: 1, wallet: 1 };
+    return (hasBackM[state.pageM] ? '<div class="back" style="background-image:' + IC.back + '" onclick="goM(\'back\')"></div>' : '') + esc(NAVT[state.pageM] || '');
+  })();
+  $('tabMaster').innerHTML = tabMaster();
+  var page = { hall: pageHall, mDetail: pageMDetail, wallet: pageWallet }[state.pageM];
+  $('scrMaster').innerHTML = '<div class="screen-pad">' + page() + '</div>';
+  $('scrMaster').scrollTop = 0;
+}
+function render() { renderU(); renderM(); renderNav(); }
+function resetDemo() {
+  state = freshState();
+  closeModal(); render();
+  toast('演示已重置,可以重新走一遍全流程');
+}
+
+/* ===================== 并发抢单演示 ===================== */
+function openConc() {
+  modal('<div class="modal-x" style="background-image:' + IC['close-d'] + '" onclick="closeModal()"></div>');
+  $('modal-root').innerHTML =
+    '<div class="modal-mask" onclick="if(event.target===this)closeModal()"><div class="conc-stage" style="position:relative">' +
+    '<div class="modal-x" style="background-image:' + IC['close-d'] + '" onclick="closeModal()"></div>' +
+    '<div class="conc-title">并发抢单:为什么只有一个人成功?</div>' +
+    '<div class="conc-sub">两位师傅同时抢下面这张订单。真实系统里,抢单 = 数据库<b>条件更新</b>(status 仍为「待接单」才生效)+ 钱包<b>原子扣款</b>,数据库保证只有一个条件更新命中。</div>' +
+    '<div class="conc-order"><span><b>空调清洗 · 家用</b> 两台挂机深度清洗,约明天上午</span><span style="white-space:nowrap;color:var(--brand);font-weight:700">抢单 ¥20</span></div>' +
+    '<div class="conc-phones">' +
+      '<div class="conc-phone" id="cpA"><div class="cp-avatar" style="background:linear-gradient(100deg,#FA6E2A,#F25B15)">王</div>' +
+      '<div class="cp-name">王师傅</div><div class="cp-bal">钱包余额 ¥260</div>' +
+      '<button class="cp-btn" id="cpBtnA" onclick="runConc()">抢单 ¥20</button>' +
+      '<div class="conc-result" id="cpResA"></div></div>' +
+      '<div class="conc-phone" id="cpB"><div class="cp-avatar" style="background:#3D6FD1">刘</div>' +
+      '<div class="cp-name">刘师傅</div><div class="cp-bal">钱包余额 ¥180</div>' +
+      '<button class="cp-btn" id="cpBtnB" onclick="runConc()">抢单 ¥20</button>' +
+      '<div class="conc-result" id="cpResB"></div></div>' +
+    '</div>' +
+    '<div style="text-align:center;margin-top:14px"><button class="site-btn" id="concGo" onclick="runConc()">▶ 两台手机同时按下</button></div>' +
+    '<div class="conc-note"><b>结果:</b>王师傅抢单成功,余额扣 ¥20;刘师傅收到「手慢了,该订单已被接走或已取消,<b>接单费已退回</b>」——订单状态机保证一张单只被接一次,不超卖、不多扣。</div>' +
+    '</div></div>';
+}
+var concRunning = false;
+function runConc() {
+  if (concRunning) return;
+  concRunning = true;
+  var a = $('cpA'), b = $('cpB'), btnA = $('cpBtnA'), btnB = $('cpBtnB'), go = $('concGo');
+  if (!a || !b) { concRunning = false; return; }
+  btnA.disabled = true; btnB.disabled = true; go.disabled = true; go.style.opacity = .5;
+  a.classList.add('racing'); b.classList.add('racing');
+  $('cpResA').textContent = '正在抢单…'; $('cpResB').textContent = '正在抢单…';
+  setTimeout(function () {
+    a.classList.remove('racing'); b.classList.remove('racing');
+    a.classList.add('won'); b.classList.add('lost');
+    $('cpResA').innerHTML = '✅ 抢单成功<br>已扣接单费 ¥20,余额 ¥240';
+    $('cpResB').innerHTML = '❌ 手慢了,该订单已被接走或已取消<br>接单费已退回,余额 ¥180';
+    concRunning = false;
+    if (go) go.textContent = '↺ 再看一遍';
+    if (go) { go.disabled = false; go.style.opacity = 1; go.onclick = function () { concRunning = false; openConc(); }; }
+  }, 900);
+}
+
+/* ===================== 启动 ===================== */
+state = freshState();
+(function () {
+  var h = location.hash.replace('#', '');
+  if (h === 'publish') { state.pageU = 'publish'; }
+  if (h === 'detail') {
+    var eq = equipByKey('homeAc'), cat = catByKey('repair');
+    var o = { id: 'U0', orderNo: makeOrderNo(), catKey: 'repair', catName: cat.name, equip: eq.name, scene: 'home',
+      sceneLabel: '家用', fee: 20, desc: '格力挂机,开机后不制冷,外机风扇不转,用了大概5年',
+      addr: '青岛市南区宁夏路118号弘诚山庄', expectTime: '9月2日 上午', status: 'accepted', publishedAt: '14:02',
+      timeline: { pub: '14:02', accept: '14:10', finish: '', confirm: '' }, master: MASTER, reviewed: false, urgent: '', photos: 1 };
+    state.orders.push(o);
+    state.detailU = 'U0'; state.pageU = 'uDetail';
+    state.detailM = 'U0'; state.pageM = 'mDetail';
+  }
+})();
+render();
+</script>
+</body>
+</html>
