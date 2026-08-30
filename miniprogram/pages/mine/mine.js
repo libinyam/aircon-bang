@@ -39,7 +39,7 @@ Page({
         ? (m.stats.totalStars / m.stats.reviewCount).toFixed(1) : '',
       isApprovedMaster: !!(m && m.status === 'approved'),
       roleTitle: m && m.status === 'approved' ? '认证维修师傅' : '服务用户',
-      roleDescription: m && m.status === 'approved' ? '已认证 · 可接单 · 可查看今日安排' : '发布需求,让师傅上门服务',
+      roleDescription: m && m.status === 'approved' ? '已认证,可以接单、看今日安排' : '发布需求,让师傅上门服务',
       roleAction: m && m.status === 'approved' ? '进入接单大厅' : '申请师傅入驻'
     })
     this.refreshAvatar(m)

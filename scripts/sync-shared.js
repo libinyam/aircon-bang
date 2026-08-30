@@ -15,6 +15,8 @@ const MAP = {
   // 业务编号(订单号/商品编号/钱包充值单号):共享生成与查重重试规则
   'bizNo.js': ['publishOrder', 'publishListing', 'wallet'],
   'storage.js': ['cronTimeout', 'mediaCheckCallback', 'applyMaster', 'admin', 'updateListing'],
+  // 匿名副本换链:所有对第三方下发临时链的读取函数
+  'anonFile.js': ['getOrders', 'getListings'],
   // 违规媒体处置:回调实时处置与 cron 补偿重放共用(评审时序重构)
   'mediaApply.js': ['mediaCheckCallback', 'cronTimeout'],
   'collections.js': ['login', 'admin'],

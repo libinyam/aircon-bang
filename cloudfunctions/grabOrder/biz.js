@@ -1,9 +1,13 @@
 // 品类与时段 —— 云函数侧【母本】,前端对应 miniprogram/utils/constants.js
 // ⚠️ 修改后执行 node scripts/sync-shared.js 同步副本;此目录不是云函数,不要上传部署
-const CATEGORY_KEYS = ['repair', 'clean', 'fluoride', 'move']
-const CATEGORY_NAMES = { repair: '空调维修', clean: '空调清洗', fluoride: '加氟利昂', move: '拆装移机' }
-// 短名(与前端 constants.js 各品类的 shortName 对应):订阅消息 thing 字段限 20 字,多选拼接只用短名
-const CATEGORY_SHORTS = { repair: '维修', clean: '清洗', fluoride: '加氟', move: '移机' }
+const CATEGORY_KEYS = ['repair', 'coldRepair', 'chillerRepair', 'clean', 'fluoride', 'move']
+const CATEGORY_NAMES = {
+  repair: '空调维修', coldRepair: '冷库设备维修', chillerRepair: '水冷机组维修',
+  clean: '空调清洗', fluoride: '加氟利昂', move: '拆装移机'
+}
+// 短名(与前端 constants.js 各品类的 shortName 对应):订阅消息 thing 字段限 20 字,
+// 六品类全选短名拼接 17 字仍不超;短名同时用于发单页磁贴,冷库/水冷在"服务类型"语境下即冷库维修/水冷机组维修
+const CATEGORY_SHORTS = { repair: '维修', coldRepair: '冷库', chillerRepair: '水冷', clean: '清洗', fluoride: '加氟', move: '移机' }
 
 // 品类多选(发单可同时勾维修+清洗+加氟…):入参归一为数组并去重,兼容老客户端单选的 category 字符串。
 // 含任何非法 key 返回 null 由调用方拒绝——不静默丢弃,保持"非法品类直接拒"的闸门语义
@@ -38,6 +42,21 @@ const SCENES = {
   commercial: { name: '商用', grabFee: 30000 } // ¥300 / 单
 }
 
+// 设备类型(发单页"修什么设备"):scene 是推导出的家用/商用费档,接单费仍按 scene 扣
+// (商用空调/中央空调/冷库/水冷都走商用档)。老客户端只传 scene 不传 equipType,保持兼容;
+// 前端镜像:miniprogram/utils/constants.js 的 EQUIP_TYPES(含展示提示文案)
+const EQUIP_TYPES = {
+  homeAc:      { name: '家用空调',     scene: 'home' },
+  homeCentral: { name: '家用中央空调', scene: 'home' },
+  commAc:      { name: '商用空调',     scene: 'commercial' },
+  commCentral: { name: '商用中央空调', scene: 'commercial' },
+  refrig:      { name: '制冷设备',     scene: 'commercial' },
+  coldStore:   { name: '冷库机组',     scene: 'commercial' },
+  waterCool:   { name: '水冷设备',     scene: 'commercial' },
+  chiller:     { name: '水冷机组',     scene: 'commercial' }
+}
+const EQUIP_TYPE_KEYS = Object.keys(EQUIP_TYPES)
+
 // 期望上门时段(北京时间小时);云函数运行在 UTC,换算用 Date.UTC(h-8)
 const SLOTS = {
   morning: { label: '上午 (8-12点)', start: 8, end: 12 },
@@ -46,7 +65,7 @@ const SLOTS = {
 }
 
 // 订单状态机 —— 云函数侧唯一状态源;前端同源定义:utils/constants.js 的 STATUS/ORDER_STATUS
-// 状态流转必须用条件原子更新 where({_id, status: 前置态}),靠 stats.updated === 0 判败
+// 状态流转必须用条件原子更新 where({_id, status: 前置态}),靠 stats.updated === 0 判败(见 CLAUDE.md)
 const STATUS = {
   PUBLISHED: 'published',            // 待接单
   ACCEPTED: 'accepted',              // 师傅已接单
@@ -106,4 +125,4 @@ const LISTING_ENUMS = {
   USED_YEARS: ['y1', 'y1_3', 'y3_5', 'y5_10', 'y10plus'] // 使用年限档
 }
 
-module.exports = { CATEGORY_KEYS, CATEGORY_NAMES, CATEGORY_SHORTS, normalizeCategories, orderCategories, categoryText, SCENE_KEYS, SCENES, SLOTS, STATUS, ACTIVE_STATUSES, STATUS_FLOW, QUAL_TYPE, normalizeCity, LISTING_STATUS, LISTING_STATUS_FLOW, LISTING_ENUMS }
+module.exports = { CATEGORY_KEYS, CATEGORY_NAMES, CATEGORY_SHORTS, normalizeCategories, orderCategories, categoryText, SCENE_KEYS, SCENES, EQUIP_TYPES, EQUIP_TYPE_KEYS, SLOTS, STATUS, ACTIVE_STATUSES, STATUS_FLOW, QUAL_TYPE, normalizeCity, LISTING_STATUS, LISTING_STATUS_FLOW, LISTING_ENUMS }

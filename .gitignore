@@ -1,17 +1,21 @@
-# 依赖
-node_modules/
+# 云函数依赖(部署时云端安装)
 cloudfunctions/**/node_modules/
+node_modules/
 
 # 开发者工具本地配置(含个人路径,不入库)
 project.private.config.json
 .DS_Store
 
-# 本地 AI/工具工作区,不入库
-.claude/
-.freebuff/
-.gh-temp/
+# 项目评审工作区(本地生成,不入库)
 .github-review-workspace/
 .github-review-memory/
 repo-context.json
+
+# 前端预览工作区(本地生成,不入库;v4.1 起文件名带版本号,通配覆盖)
 _preview/
-frontend-preview.html
+frontend-preview*.html
+
+# 测试覆盖率与本地工具目录(不入库)
+coverage/
+.zcode/
+.freebuff/

@@ -10,6 +10,7 @@
     "pages/orderDetail/orderDetail",
     "pages/pool/pool",
     "pages/masterApply/masterApply",
+    "pages/masterCategories/masterCategories",
     "pages/mine/mine",
     "pages/wallet/wallet",
     "pages/admin/admin",

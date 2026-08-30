@@ -2,7 +2,7 @@
 // 幂等入账:recharge:{outTradeNo} 流水 pending->success 条件认领(重放/并发推送只有一个赢家),
 // 金额用下单时本地预写的 amount,不信任回调数值;入账失败则回滚认领,微信重推可自愈
 // 来源与真实性:本函数对任何登录用户开放直调,而支付回调是系统推送、上下文无
-// OPENID(与 mediaCheckCallback 的 #130 同款判别)——拒绝客户端来源;入账前再 queryOrder
+// OPENID——拒绝客户端来源;入账前再 queryOrder
 // 反查微信侧订单,SUCCESS 判定不建立在可直接投递的 event 字段上
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })

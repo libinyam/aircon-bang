@@ -10,6 +10,8 @@ const crypto = require('crypto')
 
 const { LISTING_STATUS, LISTING_ENUMS } = require('./biz')
 const log = require('./logger')('getListings')
+//临时链保留对象键,直接换链照样把卖家 openid 随 URL 下发;一律经匿名副本换链
+const getAnonTempURLs = require('./anonFile')(cloud, db)
 
 // 分页大小:响应带 hasMore,前端据此判断而不是对比魔法数字
 const PAGE_SIZE = 20
@@ -45,14 +47,16 @@ function contactKey(openid, day) {
   return crypto.createHash('sha256').update(`${openid}:${day}`).digest('hex').slice(0, 32)
 }
 
-// 列表封面:整页首图一次换链。strict(市场,围观视角)换链失败不回退 fileID
-// (上传路径含卖家 openid,与 getOrders 的  同口径);本人列表回退 fileID 仍可显示
+// 列表封面:整页首图一次换链。strict(市场,围观视角)经匿名副本换链、失败不回退 fileID
+//;本人列表回退 fileID 仍可显示
 async function withCovers(rows, picked, { strict = false } = {}) {
   const firsts = rows.map(r => (r.photos || [])[0]).filter(Boolean)
   const urlMap = {}
   if (firsts.length) {
     try {
-      const r = await cloud.getTempFileURL({ fileList: firsts })
+      const r = strict
+        ? await getAnonTempURLs(firsts)
+        : await cloud.getTempFileURL({ fileList: firsts })
       for (const f of r.fileList) {
         if (f.tempFileURL) urlMap[f.fileID] = f.tempFileURL
       }
@@ -65,11 +69,13 @@ async function withCovers(rows, picked, { strict = false } = {}) {
   })
 }
 
-// 详情照片 fileID 换临时链接(与 getOrders.withTempPhotoURLs 同口径)
+// 详情照片换临时链接(与 getOrders.withTempPhotoURLs 同口径):strict 经匿名副本
 async function withTempPhotoURLs(data, { strict = false } = {}) {
   if (data.photos && data.photos.length) {
     try {
-      const r = await cloud.getTempFileURL({ fileList: data.photos })
+      const r = strict
+        ? await getAnonTempURLs(data.photos)
+        : await cloud.getTempFileURL({ fileList: data.photos })
       data.photos = r.fileList.map(f => f.tempFileURL || (strict ? null : f.fileID)).filter(Boolean)
     } catch (e) {
       if (strict) data.photos = []
@@ -79,14 +85,12 @@ async function withTempPhotoURLs(data, { strict = false } = {}) {
 }
 
 // 卖家展示头像实时派生换链(与 sellerVerified 同口径):fileID 路径含卖家 openid,
-// 只下临时链接,换链失败回退空串由前端显示文字头像。
+// 经匿名副本换链,失败回退空串由前端显示文字头像。
 // 调用时机放在各返回分支里(详情的早退错误路径不白换链)
 async function sellerAvatarUrl(seller) {
   if (!seller || !seller.avatarPhoto) return ''
-  try {
-    const { fileList } = await cloud.getTempFileURL({ fileList: [seller.avatarPhoto] })
-    return (fileList[0] && fileList[0].tempFileURL) || ''
-  } catch (e) { return '' }
+  const r = await getAnonTempURLs([seller.avatarPhoto])
+  return (r.fileList[0] && r.fileList[0].tempFileURL) || ''
 }
 
 const actions = {
@@ -120,7 +124,7 @@ const actions = {
     const sellerVerified = !!(seller && seller.status === 'approved')
     const sellerStats = seller && seller.stats
       ? { done: seller.stats.done, reviewCount: seller.stats.reviewCount, totalStars: seller.stats.totalStars }
- : null
+      : null
 
     if (isOwner) {
       const data = await withTempPhotoURLs(pick(listing, DETAIL_OWNER_FIELDS))

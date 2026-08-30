@@ -100,7 +100,13 @@ function fakeDb(fixtures) {
         // 读取返回深拷贝:真库的查询结果是快照,不随后续 update 变化(structuredClone 保留 Date)
         // count 同样走 排序->偏移->截断(与 Mongo 的 count 语义一致,排序不影响条数)
         async get() { return { data: structuredClone(applyOpts(rows.filter(r => matches(r, filter)), opts)) } },
-        async count() { return { total: applyOpts(rows.filter(r => matches(r, filter)), opts).length } },
+        async count() {
+          // 故障注入:global.__failCount = (集合名, where条件) => bool,命中则抛数据库异常
+          if (global.__failCount && global.__failCount(name, filter)) {
+            throw new Error('db count failed (injected)')
+          }
+          return { total: applyOpts(rows.filter(r => matches(r, filter)), opts).length }
+        },
         async update({ data }) {
           // 故障注入:global.__failUpdate = (集合名, where条件) => bool,命中则抛数据库异常
           if (global.__failUpdate && global.__failUpdate(name, filter)) {

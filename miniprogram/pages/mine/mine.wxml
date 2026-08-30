@@ -54,7 +54,7 @@
       <view class="ic ic-wallet"></view>
       <view class="flex-1 gold-main">
         <view class="gold-title">钱包余额 ¥{{balanceText}}</view>
-        <view class="gold-sub">接单自动扣费:家用 ¥20 · 商用 ¥300</view>
+        <view class="gold-sub">接单自动扣费:家用单 ¥20,商用单 ¥300</view>
       </view>
       <view class="gold-btn">充值 / 明细</view>
     </view>
@@ -72,19 +72,27 @@
         <text class="cell-t">我的接单</text>
         <view class="ic ic-chev ic-sm"></view>
       </view>
+      <!-- 服务能力自助调整:品类扩容后存量师傅可补勾新品类,落库即生效 -->
+      <view class="cell" hover-class="hv-cell" wx:if="{{master && master.status === 'approved'}}"
+            bindtap="nav" data-url="/pages/masterCategories/masterCategories">
+        <view class="ic ic-join-sq cell-ic"></view>
+        <text class="cell-t">服务能力</text>
+        <text class="cell-hint">{{catText}}</text>
+        <view class="ic ic-chev ic-sm"></view>
+      </view>
       <!-- 我的上架:有师傅档案即显示(资格被撤销后仍需进来看下架原因/标已售/删除,评审);
            发布与重新上架的 approved 门槛由服务端与页面内闸把守 -->
       <view class="cell" hover-class="hv-cell" wx:if="{{master}}"
             bindtap="nav" data-url="/pages/myListings/myListings">
         <view class="ic ic-shop-c cell-ic"></view>
         <text class="cell-t">我的上架</text>
-        <text class="cell-hint">卖空调 · 新机二手</text>
+        <text class="cell-hint">新机二手都能卖</text>
         <view class="ic ic-chev ic-sm"></view>
       </view>
       <view class="cell" hover-class="hv-cell" wx:if="{{!master}}" bindtap="switchToPool">
         <view class="ic ic-join-sq cell-ic"></view>
         <text class="cell-t">师傅入驻</text>
-        <text class="cell-hint">不抽成 · 费用直收</text>
+        <text class="cell-hint">不抽成,费用直接到手</text>
         <view class="ic ic-chev ic-sm"></view>
       </view>
       <!-- 分享行:button 必须是本体(hover-class 只作用于被按下的组件自身,透明覆盖层

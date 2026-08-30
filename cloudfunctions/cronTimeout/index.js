@@ -17,7 +17,7 @@ exports.main = async () => {
     statsCredited: 0, statsFailed: 0, statsFailedIds: [],
     reviewStatsCredited: 0, reviewStatsFailed: 0,
     walletStuckFound: 0, walletRefunded: 0, walletRefundFailed: 0,
-    privacyCleaned: 0, mediaCleanupRetried: 0, mediaApplyRetried: 0,
+    privacyCleaned: 0, privacyCleanFailed: 0, mediaCleanupRetried: 0, mediaApplyRetried: 0,
     uploadLogsResolved: 0, uploadOrphansCleaned: 0, error: ''
   }
 
@@ -56,36 +56,51 @@ exports.main = async () => {
     //    单单隔离:一单出错只记数,不中断其他订单和后续清理阶段
     //    投诉冻结:有未结投诉的单不自动确认;disputeHold 进翻转的原子条件,
     //    堵住"查完投诉数之后、状态翻转之前"新投诉入场的竞态(complain 先打标记再建投诉)
+    //    分页续扫:被投诉冻结等跳过的记录不推进也不落标记,固定 limit 的单页
+    //    查询会让他们永久占据页窗,第 101 条起的过期单永远轮不到;按 _id 游标翻页越过
+    //    卡住的记录,单轮实际翻转数仍守上限,跳过的记录不占翻转预算
+    const MAX_AUTO_CONFIRM = 100
     try {
-      const stale = (await db.collection('orders').where({
-        status: STATUS.PENDING_CONFIRM,
-        finishedAt: _.lt(new Date(now - 72 * 3600 * 1000))
-      }).limit(100).get()).data
-
-      for (const o of stale) {
-        try {
-          const openComplaints = (await db.collection('complaints')
-            .where({ orderId: o._id, status: 'open' }).count()).total
-          if (openComplaints > 0) { result.autoConfirmHeld++; continue }
-          if (o.disputeHold) {
-            // 投诉已关闭(或建投诉中途失败)的残留标记:本轮只清标记不翻转,下一轮再确认。
-            // 不敢清完就翻——清与翻之间可能有新投诉入场,分轮走让翻转永远面对最新判断
-            await db.collection('orders').where({ _id: o._id, disputeHold: true })
-              .update({ data: { disputeHold: false } })
-            result.autoConfirmHeld++
-            continue
-          }
-          const res = await db.collection('orders').where({
-            _id: o._id, status: STATUS.PENDING_CONFIRM, disputeHold: _.neq(true)
-          }).update({
-            data: { status: STATUS.COMPLETED, autoConfirmed: true, statsCredited: false, confirmedAt: db.serverDate() }
-          })
-          // 计实际翻转数,不用 stale.length(并发下会虚报,)
-          if (res.stats.updated > 0) result.autoConfirmed++
-        } catch (e) {
-          result.autoConfirmFailed++
-          log.error('auto confirm failed, continue next order', { orderId: o._id }, e)
+      let lastId = ''
+      for (;;) {
+        const staleCond = {
+          status: STATUS.PENDING_CONFIRM,
+          finishedAt: _.lt(new Date(now - 72 * 3600 * 1000))
         }
+        const stale = (await db.collection('orders').where(lastId
+          ? _.and([staleCond, { _id: _.gt(lastId) }])
+          : staleCond).orderBy('_id', 'asc').limit(100).get()).data
+        if (!stale.length) break
+
+        for (const o of stale) {
+          if (result.autoConfirmed >= MAX_AUTO_CONFIRM) break
+          try {
+            const openComplaints = (await db.collection('complaints')
+              .where({ orderId: o._id, status: 'open' }).count()).total
+            if (openComplaints > 0) { result.autoConfirmHeld++; continue }
+            if (o.disputeHold) {
+              // 投诉已关闭(或建投诉中途失败)的残留标记:本轮只清标记不翻转,下一轮再确认。
+              // 不敢清完就翻——清与翻之间可能有新投诉入场,分轮走让翻转永远面对最新判断
+              await db.collection('orders').where({ _id: o._id, disputeHold: true })
+                .update({ data: { disputeHold: false } })
+              result.autoConfirmHeld++
+              continue
+            }
+            const res = await db.collection('orders').where({
+              _id: o._id, status: STATUS.PENDING_CONFIRM, disputeHold: _.neq(true)
+            }).update({
+              data: { status: STATUS.COMPLETED, autoConfirmed: true, statsCredited: false, confirmedAt: db.serverDate() }
+            })
+            // 计实际翻转数,不用 stale.length
+            if (res.stats.updated > 0) result.autoConfirmed++
+          } catch (e) {
+            result.autoConfirmFailed++
+            log.error('auto confirm failed, continue next order', { orderId: o._id }, e)
+          }
+        }
+        if (result.autoConfirmed >= MAX_AUTO_CONFIRM) break
+        if (stale.length < 100) break
+        lastId = stale[stale.length - 1]._id
       }
     } catch (e) {
       // 阶段查询失败也不拖垮后面的记账与清理阶段
@@ -180,13 +195,13 @@ exports.main = async () => {
         ? (await db.collection('wallet_logs').where({
           _id: _.in(grabs.map(g => `refund:grab:${g.orderId}:${g.openid}`))
         }).limit(100).get()).data
- : []
+        : []
       const refunded = new Set(refunds.map(r => r._id))
       // 批量取涉及订单:最终接单人 == 扣款人 = 合法扣费,不退
       const orderIds = [...new Set(grabs.map(g => g.orderId))]
       const orders = orderIds.length
         ? (await db.collection('orders').where({ _id: _.in(orderIds) }).limit(100).get()).data
- : []
+        : []
       const wonBy = Object.fromEntries(orders.map(o => [o._id, o.masterOpenid || '']))
       for (const g of grabs) {
         const refundId = `refund:grab:${g.orderId}:${g.openid}`
@@ -232,39 +247,73 @@ exports.main = async () => {
     }
 
     // 3) 隐私生命周期:完结满180天的订单,清除联系方式/称呼/地址/门牌并删除照片
-    //    保留期从订单【完结时刻】起算(与隐私文案口径一致,);发布时间必然早于
+    //    保留期从订单【完结时刻】起算;发布时间必然早于
     //    完结时间,先用带索引的 publishedAt 粗筛,再逐单按终态时间精判
     //    有未处理投诉的订单跳过;privacyCleaned 标记防重,_.neq(true) 同时命中缺字段的历史订单
+    //    分页续扫:投诉未结/完结未满期/删除失败的记录都跳过且不推进,固定 limit
+    //    的单页查询会让他们永久占据页窗;按 _id 游标翻页,单轮实际清理数仍守上限
+    //    单单隔离:count 与标记落库的抖动不能冒泡——异常冒泡会让阶段 4/5 整轮跳过
     const RETENTION_MS = 180 * 24 * 3600 * 1000
-    const stale2 = (await db.collection('orders').where({
-      status: _.in([STATUS.COMPLETED, STATUS.CANCELLED]),
-      publishedAt: _.lt(new Date(now - RETENTION_MS)),
-      privacyCleaned: _.neq(true)
-    }).limit(50).get()).data
-
-    for (const o of stale2) {
-      // 完结时间:确认(含自动确认)取 confirmedAt,取消取 cancelledAt;历史缺失保守回退发布时间
-      const doneAt = new Date(o.confirmedAt || o.cancelledAt || o.publishedAt).getTime()
-      if (isNaN(doneAt) || doneAt > now - RETENTION_MS) continue
-      const openComplaints = (await db.collection('complaints')
-        .where({ orderId: o._id, status: 'open' }).count()).total
-      if (openComplaints > 0) continue
-      try {
-        // 删除失败不打清理标记,留给下一轮重试,文件线索不丢
-        await deleteFilesStrict(o.photos)
-      } catch (e) {
-        log.error('privacy clean deleteFile failed, will retry next run', { orderId: o._id }, e)
-        continue
-      }
-      await db.collection('orders').doc(o._id).update({
-        data: {
-          userPhone: '', userName: '', addressDetail: '', masterPhone: '', photos: [],
-          // 终态单长期留存无保留地址的必要,与注销清理同口径
-          address: '', location: null,
-          privacyCleaned: true, privacyCleanedAt: db.serverDate()
+    const MAX_PRIVACY_CLEAN = 50
+    try {
+      let lastId = ''
+      for (;;) {
+        const stale2Cond = {
+          status: _.in([STATUS.COMPLETED, STATUS.CANCELLED]),
+          publishedAt: _.lt(new Date(now - RETENTION_MS)),
+          privacyCleaned: _.neq(true)
         }
-      })
-      result.privacyCleaned++
+        const stale2 = (await db.collection('orders').where(lastId
+          ? _.and([stale2Cond, { _id: _.gt(lastId) }])
+          : stale2Cond).orderBy('_id', 'asc').limit(50).get()).data
+        if (!stale2.length) break
+
+        for (const o of stale2) {
+          if (result.privacyCleaned >= MAX_PRIVACY_CLEAN) break
+          // 完结时间:确认(含自动确认)取 confirmedAt,取消取 cancelledAt;历史缺失保守回退发布时间
+          const doneAt = new Date(o.confirmedAt || o.cancelledAt || o.publishedAt).getTime()
+          if (isNaN(doneAt) || doneAt > now - RETENTION_MS) continue
+          try {
+            const openComplaints = (await db.collection('complaints')
+              .where({ orderId: o._id, status: 'open' }).count()).total
+            if (openComplaints > 0) continue
+          } catch (e) {
+            result.privacyCleanFailed++
+            log.error('privacy clean complaint count failed, will retry next run', { orderId: o._id }, e)
+            continue
+          }
+          try {
+            // 删除失败不打清理标记,留给下一轮重试,文件线索不丢
+            await deleteFilesStrict(o.photos)
+          } catch (e) {
+            log.error('privacy clean deleteFile failed, will retry next run', { orderId: o._id }, e)
+            continue
+          }
+          try {
+            await db.collection('orders').doc(o._id).update({
+              data: {
+                userPhone: '', userName: '', addressDetail: '', masterPhone: '', photos: [],
+                // 终态单长期留存无保留地址的必要,与注销清理同口径
+                address: '', location: null,
+                privacyCleaned: true, privacyCleanedAt: db.serverDate()
+              }
+            })
+          } catch (e) {
+            // 标记落库失败:文件已删、标记未落,下一轮重删("文件不存在"视为成功)后收敛
+            result.privacyCleanFailed++
+            log.error('privacy clean mark failed, will retry next run', { orderId: o._id }, e)
+            continue
+          }
+          result.privacyCleaned++
+        }
+        if (result.privacyCleaned >= MAX_PRIVACY_CLEAN) break
+        if (stale2.length < 50) break
+        lastId = stale2[stale2.length - 1]._id
+      }
+    } catch (e) {
+      // 阶段查询失败也不拖垮后面的媒体补偿与孤儿清理阶段
+      result.privacyCleanFailed++
+      log.error('privacy clean phase failed', {}, e)
     }
 
     // 4) 违规图删除失败的补偿重试:mediaCheckCallback 打了 cleanupPending 的记录
@@ -299,7 +348,7 @@ exports.main = async () => {
     // 5) 上传登记清理:registerUpload 登记满24h仍是 pending 的清单,
     //    核对文件是否已被业务记录引用;未引用的即"上传成功但提交未完成"的孤儿,删除。
     //    正常提交的清单也会走到这里被标记 resolved(其文件全部有引用,零删除)。
-    //    删除失败不标记,留给下一轮重试(与隐私清理同策略,)
+    //    删除失败不标记,留给下一轮重试
     const staleUploads = (await db.collection('upload_logs').where({
       status: 'pending',
       createdAt: _.lt(new Date(now - 24 * 3600 * 1000))

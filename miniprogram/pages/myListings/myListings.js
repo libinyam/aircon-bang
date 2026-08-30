@@ -34,7 +34,7 @@ Page({
     const gen = this._gen = (this._gen || 0) + 1
     this._loading = true
     try {
-      const res = await callFn('getListings', { action: 'mine', page })
+      const res = await callFn('getListings', { action: 'mine', page }, { silent })
       if (gen !== this._gen) return
       const mapped = listingsCache.mapRows(res.data)
       this.setData({
@@ -49,6 +49,9 @@ Page({
       if (gen === this._gen && !(silent && this.data.listings.length)) {
         this.setData({ loaded: true, loadError: true })
       }
+      // 第 0 页刷新失败:缓存无法确认还能收敛,直接弃掉——下次进入走全量 loading,
+      // 不整屏渲染可能已不成立的旧状态
+      if (page === 0) listingsCache.dropMine()
     } finally {
       if (gen === this._gen) this._loading = false
     }

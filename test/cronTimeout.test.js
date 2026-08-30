@@ -1,4 +1,4 @@
-// cronTimeout 三个时间窗口的离线自动化:时钟注入 + 内存 db
+// cronTimeout 三个时间窗口的离线自动化(/#6):时钟注入 + 内存 db
 // 窗口:48h 无人接单关闭 / 完成后 72h 自动确认 / 完结 180 天隐私脱敏
 const { fakeDb } = require('./stubs/fakeDb')
 
@@ -348,7 +348,7 @@ describe('窗口3:完结满180天隐私脱敏', () => {
     expect(fx.orders[0].userPhone).toBe('')
   })
 
-  test('发布超180天但刚完结的订单:不清理(保留期从完结时刻起算,)', async () => {
+  test('发布超180天但刚完结的订单:不清理(保留期从完结时刻起算)', async () => {
     const fx = {
       orders: [
         oldOrder({ _id: 'fresh-done', publishedAt: daysAgo(200), confirmedAt: daysAgo(10) }),
@@ -397,6 +397,96 @@ describe('窗口3:完结满180天隐私脱敏', () => {
     const { res, deleted } = await runCron(fx)
     expect(res.privacyCleaned).toBe(0)
     expect(deleted).toEqual([])
+  })
+})
+
+describe('窗口3:分页续扫——被冻结记录不占页窗', () => {
+  const ripe = (id) => ({
+    _id: id, status: 'completed', publishedAt: daysAgo(400), confirmedAt: daysAgo(200),
+    userPhone: '13800138000', userName: '王先生', addressDetail: '3栋502',
+    address: '阳光花园', location: { type: 'Point', coordinates: [120.38, 36.07] },
+    masterPhone: '13911112222', photos: ['cloud://x.jpg']
+  })
+
+  test('前 50 条全部被投诉冻结:第 51 条仍被清理', async () => {
+    // 老行为:limit(50) 的单页查询每轮返回同样的前 50 条冻结单,后面的到期单永久饥饿
+    const held = Array.from({ length: 50 }, (_, i) => ripe('h' + String(i).padStart(2, '0')))
+    const fx = {
+      orders: [...held, ripe('z99')],
+      complaints: held.map((o, i) => ({ _id: 'c' + i, orderId: o._id, status: 'open' }))
+    }
+    const { res, deleted } = await runCron(fx)
+    expect(res.privacyCleaned).toBe(1)
+    const byId = Object.fromEntries(fx.orders.map(o => [o._id, o]))
+    expect(byId.z99.userPhone).toBe('')               // 翻页越过冻结单,z99 被清理
+    expect(byId.h00.userPhone).toBe('13800138000')    // 冻结的照旧不清理
+    expect(deleted).toEqual(['cloud://x.jpg'])
+  })
+
+  test('发布超180天但完结未满期的单大量堆积时,同样不挡住后面的到期单', async () => {
+    // 未满期单(unripe)在查询集里滞留长达180天,老行为下同样永久占据页窗
+    const young = Array.from({ length: 50 }, (_, i) => Object.assign(ripe('u' + String(i).padStart(2, '0')), { confirmedAt: daysAgo(10) }))
+    const fx = { orders: [...young, ripe('z99')], complaints: [] }
+    const { res } = await runCron(fx)
+    expect(res.privacyCleaned).toBe(1)
+    const byId = Object.fromEntries(fx.orders.map(o => [o._id, o]))
+    expect(byId.z99.userPhone).toBe('')
+    expect(byId.u00.userPhone).toBe('13800138000')
+  })
+})
+
+describe('窗口3:单单隔离——count/标记落库失败不中断后续阶段', () => {
+  const oldOrder = (over = {}) => Object.assign({
+    _id: 'p1', status: 'completed', publishedAt: daysAgo(181),
+    userPhone: '13800138000', userName: '王先生', addressDetail: '3栋502',
+    address: '阳光花园', location: { type: 'Point', coordinates: [120.38, 36.07] },
+    masterPhone: '13911112222', photos: ['cloud://a.jpg', 'cloud://b.jpg']
+  }, over)
+
+  afterEach(() => {
+    delete global.__failCount
+    delete global.__failUpdate
+  })
+
+  test('投诉 count 抛错:该单跳过,阶段4/5 照常执行,run 整体不算失败', async () => {
+    const fx = {
+      orders: [oldOrder()], complaints: [],
+      media_checks: [{ _id: 'c1', fileID: 'cloud://risky.jpg', cleanupPending: true, status: 'risky' }],
+      upload_logs: [{ _id: 'log1', openid: 'u-1', scene: 'order', status: 'pending', fileIDs: ['cloud://orphan.jpg'], createdAt: hoursAgo(25) }]
+    }
+    global.__failCount = (name) => name === 'complaints'
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const { res } = await runCron(fx)
+    errSpy.mockRestore()
+
+    expect(res.privacyCleanFailed).toBe(1)
+    expect(res.privacyCleaned).toBe(0)
+    expect(fx.orders[0].userPhone).toBe('13800138000')   // 该单留待下一轮重试
+    expect(res.mediaCleanupRetried).toBe(1)              // 阶段 4 没被跳过
+    expect(res.uploadLogsResolved).toBe(1)               // 阶段 5 没被跳过
+    expect(res.error).toBe('')                           // 异常没冒泡到外层 catch
+    expect(fx.cron_logs).toHaveLength(1)
+  })
+
+  test('清理标记落库抛错(文件已删):计数留痕,阶段4照常,下一轮重删后收敛', async () => {
+    const fx = { orders: [oldOrder()], complaints: [] }
+    // 只命中 doc() 路径的隐私标记更新(条件更新都是多键 where 形状)
+    global.__failUpdate = (name, f) => name === 'orders' && Object.keys(f).length === 1 && f._id === 'p1'
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const first = await runCron(fx)
+    errSpy.mockRestore()
+
+    expect(first.res.privacyCleanFailed).toBe(1)
+    expect(first.res.privacyCleaned).toBe(0)
+    expect(first.deleted).toEqual(['cloud://a.jpg', 'cloud://b.jpg'])  // 文件已删
+    expect(fx.orders[0].privacyCleaned).toBeUndefined()                // 标记未落,下一轮重试
+    expect(first.res.mediaCleanupRetried).toBe(0)                      // 本 fixture 无阶段4数据,仅验证不炸
+
+    delete global.__failUpdate
+    const second = await runCron(fx)   // 故障解除:重删(不存在视为成功)后收敛
+    expect(second.res.privacyCleaned).toBe(1)
+    expect(second.res.privacyCleanFailed).toBe(0)
+    expect(fx.orders[0].privacyCleaned).toBe(true)
   })
 })
 
@@ -636,7 +726,7 @@ describe('窗口4b:违规处置落库失败的补偿重放(评审:applyPending /
   })
 })
 
-describe('批处理上限(fakeDb 查询语义修复后可测,)', () => {
+describe('批处理上限(fakeDb 查询语义修复后可测)', () => {
   test('自动确认单轮上限 100:101 条过期单只翻转 100 条,剩余下一轮', async () => {
     const fx = {
       orders: Array.from({ length: 101 }, (_, i) => ({
@@ -651,6 +741,50 @@ describe('批处理上限(fakeDb 查询语义修复后可测,)', () => {
     expect(fx.orders.filter(o => o.status === 'completed')).toHaveLength(100)
     expect(fx.orders.filter(o => o.status === 'pending_confirm')).toHaveLength(1)
     expect(fx.masters[0].stats.done).toBe(100)   // 补账阶段同上限,本轮翻转的单全部记上
+  })
+
+  test('分页续扫:前 100 条全部被投诉冻结时,第 101 条过期单仍被自动确认', async () => {
+    // 老行为:limit(100) 的单页查询每轮返回同样的前 100 条被冻结单,第 101 条永久饥饿
+    const held = Array.from({ length: 100 }, (_, i) => ({
+      _id: 'h' + String(i).padStart(3, '0'), status: 'pending_confirm', finishedAt: hoursAgo(73),
+      masterOpenid: 'm-1', publishedAt: hoursAgo(80)
+    }))
+    const fx = {
+      orders: [...held, {
+        _id: 'z999', status: 'pending_confirm', finishedAt: hoursAgo(73),
+        masterOpenid: 'm-1', publishedAt: hoursAgo(80)
+      }],
+      masters: [{ _id: 'm-1', openid: 'm-1', stats: { done: 0 } }],
+      complaints: held.map((o, i) => ({ _id: 'c' + i, orderId: o._id, status: 'open' }))
+    }
+    const { res } = await runCron(fx)
+    expect(res.autoConfirmHeld).toBe(100)        // 冻结的照旧跳过(不占翻转预算)
+    expect(res.autoConfirmed).toBe(1)            // 翻页越过前 100 条,z999 被翻转
+    const byId = Object.fromEntries(fx.orders.map(o => [o._id, o]))
+    expect(byId.z999.status).toBe('completed')
+    expect(byId.h000.status).toBe('pending_confirm')
+    expect(fx.masters[0].stats.done).toBe(1)
+  })
+
+  test('冻结单越过页窗后不影响单轮上限:150 条可翻转单仍只翻 100 条', async () => {
+    // 50 条冻结在前 + 150 条可翻转:翻页越过冻结单后,单轮翻转数仍守的上限
+    const held = Array.from({ length: 50 }, (_, i) => ({
+      _id: 'a' + String(i).padStart(3, '0'), status: 'pending_confirm', finishedAt: hoursAgo(73),
+      masterOpenid: 'm-1', publishedAt: hoursAgo(80)
+    }))
+    const flippable = Array.from({ length: 150 }, (_, i) => ({
+      _id: 'b' + String(i).padStart(3, '0'), status: 'pending_confirm', finishedAt: hoursAgo(73),
+      masterOpenid: 'm-1', publishedAt: hoursAgo(80)
+    }))
+    const fx = {
+      orders: [...held, ...flippable],
+      masters: [{ _id: 'm-1', openid: 'm-1', stats: { done: 0 } }],
+      complaints: held.map((o, i) => ({ _id: 'c' + i, orderId: o._id, status: 'open' }))
+    }
+    const { res } = await runCron(fx)
+    expect(res.autoConfirmHeld).toBe(50)
+    expect(res.autoConfirmed).toBe(100)
+    expect(fx.orders.filter(o => o.status === 'completed')).toHaveLength(100)
   })
 })
 

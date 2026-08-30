@@ -22,7 +22,7 @@ Page({
   },
   onPullDownRefresh() { this.loadMarket(0).finally(() => wx.stopPullDownRefresh()) },
   onReachBottom() {
-    // 请求锁:上一页在途时忽略触底(与 pool 同范式,)
+    // 请求锁:上一页在途时忽略触底(与 pool 同范式)
     if (!this.data.noMore && this.data.loaded && !this._loading) {
       this.loadMarket(this.data.page + 1)
     }

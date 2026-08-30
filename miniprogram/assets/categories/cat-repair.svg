@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="pod-r" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF8F2"/>
+      <stop offset="100%" stop-color="#FFE8D6"/>
+    </linearGradient>
+    <linearGradient id="ac-body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="70%" stop-color="#F2F5F9"/>
+      <stop offset="100%" stop-color="#DDE4ED"/>
+    </linearGradient>
+    <linearGradient id="wrench-metal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFA877"/>
+      <stop offset="50%" stop-color="#F25B15"/>
+      <stop offset="100%" stop-color="#C94200"/>
+    </linearGradient>
+    <filter id="shadow-pod" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#F25B15" flood-opacity="0.12"/>
+    </filter>
+    <filter id="shadow-tool" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#171C24" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <!-- 底托圆角背景 -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#pod-r)" filter="url(#shadow-pod)" stroke="#FFE0CA" stroke-width="1.5"/>
+  <!-- 空调主机微 3D 轮廓 -->
+  <g filter="url(#shadow-tool)">
+    <rect x="22" y="32" width="76" height="42" rx="8" fill="url(#ac-body)"/>
+    <path d="M 26 32 L 94 32 A 4 4 0 0 1 98 36 L 98 38 L 22 38 L 22 36 A 4 4 0 0 1 26 32 Z" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="26" y="58" width="68" height="10" rx="3" fill="#E1E7EF"/>
+    <line x1="30" y1="63" x2="88" y2="63" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/>
+    <rect x="80" y="42" width="12" height="7" rx="2" fill="#1E293B"/>
+    <circle cx="86" cy="45.5" r="1.5" fill="#10B981"/>
+    <line x1="30" y1="46" x2="60" y2="46" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  </g>
+  <!-- 3D 金属扳手 -->
+  <g filter="url(#shadow-tool)" transform="translate(68, 48) rotate(32)">
+    <rect x="18" y="10" width="42" height="10" rx="4" fill="url(#wrench-metal)"/>
+    <circle cx="16" cy="15" r="14" fill="url(#wrench-metal)"/>
+    <circle cx="16" cy="15" r="7" fill="#FFF2E8"/>
+    <rect x="12" y="8" width="8" height="8" fill="#FFF2E8"/>
+    <circle cx="56" cy="15" r="8" fill="url(#wrench-metal)"/>
+    <circle cx="56" cy="15" r="3.5" fill="#FFE8D6"/>
+  </g>
+</svg>

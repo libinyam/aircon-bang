@@ -1,8 +1,10 @@
 // 业务常量:品类与时段的【前端唯一定义处】
 // ⚠️ 增删品类/时段:同时改后端母本 cloudfunctions/_shared/biz.js,然后执行 node scripts/sync-shared.js
-//    图标:app.wxss 里按 key 命名(.ic-cat-{key} 及发单页的 -g/-on 变体),新品类需补三个图标类
+//    图标:app.wxss 里按 key 命名(.ic-cat-{key} 引用 assets/cat-{key}.png 黏土图),新品类需补一张同名 PNG+一个类
 const CATEGORIES = [
   { key: 'repair', name: '空调维修', shortName: '维修', desc: '不制冷/不启动/异响漏水' },
+  { key: 'coldRepair', name: '冷库设备维修', shortName: '冷库', desc: '保鲜库/冷冻库不制冷、机组故障' },
+  { key: 'chillerRepair', name: '水冷机组维修', shortName: '水冷', desc: '冷水机组/冷却塔/水泵故障' },
   { key: 'clean', name: '空调清洗', shortName: '清洗', desc: '内外机深度清洗消毒' },
   { key: 'fluoride', name: '加氟利昂', shortName: '加氟', desc: '制冷效果差、缺氟补充' },
   { key: 'move', name: '拆装移机', shortName: '移机', desc: '搬家拆机、装机、打孔' }
@@ -21,13 +23,30 @@ const SCENES = [
   { key: 'home', name: '家用', grabFee: 2000 },
   { key: 'commercial', name: '商用', grabFee: 30000 }
 ]
+
+// 设备类型(发单页"修什么设备",与 _shared/biz.js 的 EQUIP_TYPES 同源;tip 为前端展示文案)
+// scene 由设备类型推导,发单不再单独选家用/商用;商用档设备接单费 ¥300,家用档 ¥20
+const EQUIP_TYPES = [
+  { key: 'homeAc',      name: '家用空调',     scene: 'home',       tip: '挂机 / 柜机 / 风管机' },
+  { key: 'homeCentral', name: '家用中央空调', scene: 'home',       tip: '家用多联机 / 一拖多' },
+  { key: 'commAc',      name: '商用空调',     scene: 'commercial', tip: '商铺 / 办公柜挂机' },
+  { key: 'commCentral', name: '商用中央空调', scene: 'commercial', tip: '多联机 / 风管系统' },
+  { key: 'refrig',      name: '制冷设备',     scene: 'commercial', tip: '冷柜 / 展示柜 / 制冰机' },
+  { key: 'coldStore',   name: '冷库机组',     scene: 'commercial', tip: '保鲜库 / 冷冻库' },
+  { key: 'waterCool',   name: '水冷设备',     scene: 'commercial', tip: '冷却塔 / 水冷柜机' },
+  { key: 'chiller',     name: '水冷机组',     scene: 'commercial', tip: '冷水机组 / 螺杆机' }
+]
+function equipTypeName(key) {
+  const t = EQUIP_TYPES.find(t => t.key === key)
+  return t ? t.name : ''
+}
 function sceneName(key) { return pickName(SCENES, key) }
 function grabFee(key) {
   const it = SCENES.find(s => s.key === key)
   return it ? it.grabFee : SCENES[0].grabFee // 老订单无 scene 按家用(与 grabOrder 口径一致)
 }
 
-// 订单状态 key 常量(与云函数母本 _shared/biz.js 的 STATUS 同源,)
+// 订单状态 key 常量
 // JS 里判断状态用这里,不要写裸字符串;WXML 里的字面量由 test/statusMachine.test.js 守护
 const STATUS = {
   PUBLISHED: 'published',
@@ -131,6 +150,17 @@ const USED_YEARS = [
 // 品牌建议 chips(纯前端 UI 素材,后端按自由文本处理,不进 biz.js)
 const BRAND_SUGGESTS = ['格力', '美的', '海尔', '奥克斯', 'TCL', '海信', '小米']
 
+// 首页"常见服务"参考价卡(纯前端 UI 素材,不进 biz.js):价格是展示用的本地行情参考,
+// 不是平台报价——下单仍走"师傅上门当面谈价",模块脚注已写明"以上门报价为准"。
+// price 单位元,展示成"¥120起";icon 取 CATEGORIES 的 key(复用 .ic-cat-{key} 图标)
+// ⚠️ 参考价请按本地实际行情修改;category 必须是 CATEGORIES 已有的 key
+const POPULAR_SERVICES = [
+  { key: 'cleanWall', name: '挂机深度清洗', category: 'clean', icon: 'clean', price: 120, desc: '内外机·高温消毒' },
+  { key: 'repairCheck', name: '空调故障维修', category: 'repair', icon: 'repair', price: 60, desc: '不制冷/不启动' },
+  { key: 'fluorideTop', name: '环保加氟', category: 'fluoride', icon: 'fluoride', price: 150, desc: '压力当面测' },
+  { key: 'moveAc', name: '拆装移机', category: 'move', icon: 'move', price: 180, desc: '拆机装机·打孔' }
+]
+
 function pickName(list, key) {
   const it = list.find(it => it.key === key)
   return it ? it.name : ''
@@ -145,7 +175,8 @@ module.exports = {
   CATEGORIES, SLOTS, STATUS, ORDER_STATUS, MASTER_STATUS, QUAL_TYPES,
   categoryName, categoryShort, slotShort, qualTypeLabel,
   SCENES, sceneName, grabFee,
+  EQUIP_TYPES, equipTypeName,
   LISTING_STATUS, LISTING_STATUS_MAP, CONDITIONS, UNIT_TYPES, HP_OPTIONS,
-  USED_GRADES, USED_YEARS, BRAND_SUGGESTS,
+  USED_GRADES, USED_YEARS, BRAND_SUGGESTS, POPULAR_SERVICES,
   conditionName, unitTypeName, hpName, gradeName, yearsName
 }

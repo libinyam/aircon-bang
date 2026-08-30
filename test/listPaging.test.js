@@ -114,7 +114,7 @@ describe('代次控制:刷新后晚到的旧分页响应被丢弃', () => {
   })
 })
 
-// 后端分页契约(fakeDb 查询语义修复后首次可测,):
+// 后端分页契约(fakeDb 查询语义修复后首次可测):
 // 真实 orderBy/skip/limit 生效,断言 userList/pool 的翻页窗口、倒序方向与 hasMore 边界
 async function callGetOrders(event, openid, fx) {
   jest.resetModules()

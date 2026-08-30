@@ -13,7 +13,7 @@ exports.main = async (event) => {
   const { orderId, listingId, content = '' } = event
 
   // content 必须是字符串:显式传 null/数字/对象时 .trim/.length 会抛 500
-  // (,与 submitReview 的 #107 修复同款;complain 当时漏改)
+  //
   if (typeof content !== 'string') return bad('参数错误')
   if ((!orderId && !listingId) || content.trim().length < 5) return bad('请描述投诉内容(至少5个字)')
   if (content.length > 500) return bad('内容太长了')

@@ -21,7 +21,7 @@ Component({
   },
   methods: {
     // show() 的例行同步走缓存,免得每次切 tab 都打一次 login;
-    // forceRefresh 参数保留给需要现场强刷的调用方(身份复核已移到 pool 页内,#136 不回退)
+    // forceRefresh 参数保留给需要现场强刷的调用方
     async syncRole(forceRefresh) {
       const g = await getApp().getUser(forceRefresh)
       const isApprovedMaster = !!(g.master && g.master.status === 'approved')

@@ -38,7 +38,7 @@ Page({
       if (gen !== this._gen) return
       const list = res.data.map(o => Object.assign(o, {
         publishedAtText: formatTime(o.publishedAt),
-        sceneLabel: sceneName(o.scene) || '家用'
+        sceneLabel: o.equipTypeName || sceneName(o.scene) || '家用' // 新单显示设备类型(如商用中央空调),老单回退家用/商用
       }))
       this.setData({
         orders: page === 0 ? list : mergeById(this.data.orders, list),

@@ -21,7 +21,7 @@
     <button class="btn-ghost mt16 retry-btn" bindtap="retryLoad">重试</button>
   </view>
   <view class="empty" wx:elif="{{loaded && !orders.length}}">
-    <view class="ic il-empty-order ic-big"></view>
+    <image class="empty-img" src="/assets/empty-orders.png" mode="aspectFit" />
     <text>{{mode === 'master' ? '还没有接过订单' : '还没有发布过需求'}}</text>
   </view>
 

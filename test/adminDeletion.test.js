@@ -23,6 +23,8 @@ const FX = () => ({
   reviews: [],
   complaints: [],
   member_logs: [],
+  wallets: [],
+  wallet_logs: [],
   media_checks: [],
   upload_logs: []
 })
@@ -92,6 +94,39 @@ describe('成功执行:用户角色全量删除/匿名化', () => {
     expect(fx.member_logs[0].masterName).toBe('')
     expect(fx.media_checks[0].status).toBe('superseded')
     expect(fx.deletion_requests[0].execution.masterRemoved).toBe(true)
+  })
+})
+
+describe('钱包清理:删号覆盖 wallets/wallet_logs', () => {
+  test('余额文档删除(回流零余额重建),流水保留作凭证但 openid 解除关联,他人流水不动', async () => {
+    const fx = FX()
+    fx.wallets = [{ _id: U, balance: 48000 }]
+    fx.wallet_logs = [
+      { _id: `grab:o1:${U}`, openid: U, type: 'grab', amount: -2000, orderId: 'o1', createdAt: new Date() },
+      { _id: 'topup:1', openid: U, type: 'topup', amount: 50000, createdAt: new Date() },
+      { _id: 'grab:o2:other', openid: 'other', type: 'grab', amount: -3000, orderId: 'o2', createdAt: new Date() }
+    ]
+    const r = await callAdmin(fx, { action: 'executeDeletion', requestId: U })
+    expect(r.ok).toBe(true)
+    expect(fx.wallets).toHaveLength(0)                    // 余额文档删除
+    expect(r.summary.walletRemoved).toBe(true)
+    expect(r.summary.walletLogsUnlinked).toBe(2)         // 本人两条流水解除关联
+    expect(fx.wallet_logs[0].openid).toBe('deleted')     // 凭证保留但不再复联回流用户
+    expect(fx.wallet_logs[0].amount).toBe(-2000)
+    expect(fx.wallet_logs[1].openid).toBe('deleted')
+    // grab 流水 _id 内嵌 openid 段保留:仅服务端/管理后台可见,不随响应下发(口径见策略注释)
+    expect(fx.wallet_logs[0]._id).toBe(`grab:o1:${U}`)
+    expect(fx.wallet_logs[2].openid).toBe('other')       // 他人流水不动
+    // 工单留痕含 wallet_logs 保留口径
+    expect(fx.deletion_requests[0].execution.retained.join()).toContain('wallet_logs')
+  })
+
+  test('钱包文档本就不存在(从未充值):幂等通过,不阻断工单完成', async () => {
+    const fx = FX()
+    const r = await callAdmin(fx, { action: 'executeDeletion', requestId: U })
+    expect(r.ok).toBe(true)
+    expect(r.summary.walletRemoved).toBe(false)
+    expect(fx.deletion_requests[0].status).toBe('executed')
   })
 })
 

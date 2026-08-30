@@ -74,6 +74,8 @@ Page({
       // 到账走 payCallback 异步回调:延迟轮询几次把余额拉平(用户也可下拉刷新)
       setTimeout(() => this.pollBalance(3), 1500)
     } catch (e) {
+      // requestPayment 的 errMsg 是区分"没拉起收银台/取消/商户号问题"的唯一线索,必须留痕
+      console.warn('[wallet] recharge fail', e && e.errMsg, e)
       // 主动取消不算错误;其他失败 callFn 已提示或 requestPayment errMsg 给明确文案
       if (e && /cancel/i.test(e.errMsg || '')) {
         wx.showToast({ title: '已取消支付,未扣款', icon: 'none' })

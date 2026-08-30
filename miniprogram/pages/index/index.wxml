@@ -1,35 +1,125 @@
 <view class="page">
-  <!-- 品牌 hero:heroImage 为换链后的临时链接(换链失败/留空自动回退品牌渐变);
-       文案只描述真实服务范围,不承诺兑现不了的事 -->
+  <!-- 品牌 hero: 增强万师傅式品牌信任标+城市+搜索 -->
   <view class="hero {{heroImage ? 'hero--photo' : 'hero--plain'}}">
     <image class="hero-bg" src="{{heroImage}}" mode="aspectFill" wx:if="{{heroImage}}" binderror="onHeroImgError" />
     <view class="hero-scrim" wx:if="{{heroImage}}"></view>
     <view class="hero-inner" style="padding-top:{{statusBarHeight}}px">
-      <!-- 角色入口：认证师傅进入接单大厅，其他用户进入入驻申请；认证结果由云函数返回 -->
-      <view class="role-tabs">
-        <view class="role-tab on">
-          <text>找师傅</text>
-          <view class="role-line"></view>
+      <!-- 角色入口 & 信任背书 -->
+      <view class="hero-top-bar">
+        <view class="role-tabs">
+          <view class="role-tab on">
+            <text>找师傅</text>
+            <view class="role-line"></view>
+          </view>
+          <view class="role-tab" bindtap="goMaster">{{masterEntryText}}</view>
         </view>
-        <view class="role-tab" bindtap="goMaster">{{masterEntryText}}</view>
+        <view class="trust-badge">
+          <text class="trust-dot"></text>
+          <text>价格透明·当面谈价</text>
+        </view>
       </view>
 
-      <view class="hero-hi">{{greeting}} · 需要师傅上门吗?</view>
-      <view class="hero-brand"><text>空调帮</text><view class="hero-mark"></view></view>
-      <view class="hero-slogan">发单免费 · 师傅上门 · 费用当面结</view>
+      <view class="hero-hi">{{greeting}},需要师傅上门吗?</view>
+      <view class="hero-brand"><text>空调帮</text></view>
+      <view class="hero-slogan">专业制冷维修 · 免平台中介费 · 师傅直接到家</view>
 
-      <!-- 搜索样式发单入口 -->
+      <!-- 搜索样式发单入口: 仿万师傅城市定位 + 轮播词 + 搜索按钮 -->
       <view class="search-card" hover-class="hv-press" bindtap="goPublish" data-category="">
         <view class="search-box">
+          <view class="city-tag">
+            <text class="city-text">青岛/同城</text>
+            <view class="ic ic-caret-d ic-xs"></view>
+          </view>
+          <view class="search-divider"></view>
           <view class="ic ic-search-o ic-sm"></view>
-          <text class="search-ph">说说空调的问题</text>
+          <text class="search-ph flex-1">{{searchPlaceholder}}</text>
+          <view class="search-btn">发单</view>
         </view>
       </view>
     </view>
   </view>
 
   <view class="body">
-    <!-- 品类:面性彩色图标直接放底上 -->
+    <!-- 万师傅参考 1: 优惠权益横幅 (Promo Banner) -->
+    <view class="promo-banner" hover-class="hv-press" bindtap="goPublish">
+      <view class="promo-left">
+        <view class="promo-tag">平台特惠</view>
+        <view class="promo-title">空调维修/清洗 免费快速上门</view>
+        <view class="promo-desc">不抽成零加价 · 满意后再付款</view>
+      </view>
+      <view class="promo-right">
+        <view class="promo-coupon">
+          <text class="coupon-unit">¥</text>
+          <text class="coupon-val">0</text>
+          <text class="coupon-txt">元发单</text>
+        </view>
+        <view class="promo-btn">立即发单</view>
+      </view>
+    </view>
+
+    <!-- 万师傅参考 2: 热门特惠服务卡横滑区 (已引入全新高质量退底实拍/渲染图) -->
+    <view class="section-head">
+      <view class="section-title">热门空调服务</view>
+      <view class="section-more" bindtap="goPublish">全部服务<view class="ic ic-chev-o ic-xs"></view></view>
+    </view>
+    <scroll-view class="hot-scroll" scroll-x show-scrollbar="{{false}}">
+      <view class="hot-card" hover-class="hv-press" bindtap="goPublish" data-category="clean">
+        <view class="hot-badge">平台特惠</view>
+        <view class="hot-img-box hot-img--clean">
+          <image class="hot-img" src="/assets/svc-clean.png" mode="aspectFit" />
+        </view>
+        <view class="hot-name">挂式空调深度清洗</view>
+        <view class="hot-sub">全拆消毒/高压除垢</view>
+        <view class="hot-bottom">
+          <view class="hot-price"><text class="hot-p-sym">¥</text><text class="hot-p-val">68</text><text class="hot-p-unit">起</text><text class="hot-p-strike">¥98</text></view>
+          <view class="hot-action">预约</view>
+        </view>
+      </view>
+
+      <view class="hot-card" hover-class="hv-press" bindtap="goPublish" data-category="fluoride">
+        <view class="hot-badge">平台特惠</view>
+        <view class="hot-img-box hot-img--fluoride">
+          <image class="hot-img" src="/assets/svc-fluoride.png" mode="aspectFit" />
+        </view>
+        <view class="hot-name">空调加氟/测压</view>
+        <view class="hot-sub">环保制冷剂/定量充注</view>
+        <view class="hot-bottom">
+          <view class="hot-price"><text class="hot-p-sym">¥</text><text class="hot-p-val">40</text><text class="hot-p-unit">起</text><text class="hot-p-strike">¥59</text></view>
+          <view class="hot-action">预约</view>
+        </view>
+      </view>
+
+      <view class="hot-card" hover-class="hv-press" bindtap="goPublish" data-category="repair">
+        <view class="hot-badge">平台特惠</view>
+        <view class="hot-img-box hot-img--repair">
+          <image class="hot-img" src="/assets/svc-repair.png" mode="aspectFit" />
+        </view>
+        <view class="hot-name">不制冷/主板检修</view>
+        <view class="hot-sub">精准查漏/原厂配件</view>
+        <view class="hot-bottom">
+          <view class="hot-price"><text class="hot-p-sym">¥</text><text class="hot-p-val">30</text><text class="hot-p-unit">起</text><text class="hot-p-strike">¥49</text></view>
+          <view class="hot-action">预约</view>
+        </view>
+      </view>
+
+      <view class="hot-card" hover-class="hv-press" bindtap="goPublish" data-category="move">
+        <view class="hot-badge">平台特惠</view>
+        <view class="hot-img-box hot-img--move">
+          <image class="hot-img" src="/assets/svc-move.png" mode="aspectFit" />
+        </view>
+        <view class="hot-name">空调移机/拆装</view>
+        <view class="hot-sub">包收氟/包固定/打孔</view>
+        <view class="hot-bottom">
+          <view class="hot-price"><text class="hot-p-sym">¥</text><text class="hot-p-val">120</text><text class="hot-p-unit">起</text><text class="hot-p-strike">¥169</text></view>
+          <view class="hot-action">预约</view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 万师傅参考 3: 品类网格金刚区 (3D 黏土微立体高保真图标) -->
+    <view class="section-head mt24">
+      <view class="section-title">全上品类服务</view>
+    </view>
     <view class="cat-grid">
       <view class="cat-cell" wx:for="{{categories}}" wx:key="key"
             bindtap="goPublish" data-category="{{item.key}}">
@@ -43,7 +133,7 @@
     <view class="sec-label" wx:if="{{activeOrders.length}}">我发的单</view>
     <view class="order-strip" hover-class="hv-press" wx:for="{{activeOrders}}" wx:key="_id"
           bindtap="goDetail" data-id="{{item._id}}">
-      <view class="strip-dot" style="background:{{statusMap[item.status].color}};box-shadow:0 0 0 7rpx {{statusMap[item.status].color}}22"></view>
+      <view class="strip-dot" style="background:{{statusMap[item.status].color}}"></view>
       <text class="strip-title">{{item.categoryName}} · {{statusMap[item.status].label}}</text>
       <text class="strip-time flex-1">{{item.expectTime}}</text>
       <view class="ic ic-chev ic-sm"></view>
@@ -51,37 +141,57 @@
     <view class="sec-label" wx:if="{{masterOrders.length}}">我接的单</view>
     <view class="order-strip" hover-class="hv-press" wx:for="{{masterOrders}}" wx:key="_id"
           bindtap="goDetail" data-id="{{item._id}}">
-      <view class="strip-dot" style="background:{{statusMap[item.status].color}};box-shadow:0 0 0 7rpx {{statusMap[item.status].color}}22"></view>
+      <view class="strip-dot" style="background:{{statusMap[item.status].color}}"></view>
       <text class="strip-title">{{item.categoryName}} · {{statusMap[item.status].label}}</text>
       <text class="strip-time flex-1">{{item.expectTime}}</text>
       <view class="ic ic-chev ic-sm"></view>
     </view>
 
-    <!-- 主CTA横幅(诚实版:只承诺能兑现的) -->
-    <view class="promo" hover-class="hv-press" bindtap="goPublish" data-category="">
-      <view class="flex-1">
-        <view class="promo-t">发单免费 · 当面结算</view>
-        <view class="promo-s">同城实名认证师傅接单,不成单不花钱</view>
-      </view>
-      <view class="promo-go">发单</view>
+    <!-- 信任背书条:只写平台真实做到的事(实名入驻/评价留痕/进度可查),不承诺兑现不了的 -->
+    <view class="trust-bar">
+      <view class="trust-item"><view class="ic ic-shield-f trust-ic"></view>师傅实名认证</view>
+      <view class="trust-item"><view class="ic ic-doc-f trust-ic"></view>评价真实留痕</view>
+      <view class="trust-item"><view class="ic ic-clock trust-ic"></view>进度随时可查</view>
     </view>
 
     <!-- 买空调 / 师傅接单:双列入口卡(打破横条堆叠的单调节奏) -->
     <view class="dual-row">
       <view class="dual-card" hover-class="hv-press" bindtap="goMarket">
-        <view class="dual-ic"><view class="ic ic-shop-c"></view></view>
-        <view class="dual-t">买空调</view>
-        <view class="dual-s">师傅直卖 · 当面验货</view>
+        <view class="dual-ic"><view class="ic ic-shop-3d dual-ic-3d"></view></view>
+        <view class="dual-t">买空调 · 二手市场</view>
+        <view class="dual-s">师傅直卖 · 当面验机</view>
         <view class="dual-go">去逛逛<view class="ic ic-chev-o ic-xs"></view></view>
       </view>
-      <view class="dual-card dual-card--green" hover-class="hv-press" bindtap="goMaster">
-        <view class="dual-ic dual-ic--green"><view class="ic ic-join-sq"></view></view>
+      <view class="dual-card dual-card--blue" hover-class="hv-press" bindtap="goMaster">
+        <view class="dual-ic dual-ic--blue"><view class="ic ic-master-3d dual-ic-3d"></view></view>
         <view class="dual-t">{{isApprovedMaster ? '接单大厅' : '我是师傅'}}</view>
-        <view class="dual-s">{{isApprovedMaster ? '待接订单与今日安排' : '不抽成 · 费用直收'}}</view>
+        <view class="dual-s">{{isApprovedMaster ? '待接订单与今日安排' : '零抽成 · 结款到手快'}}</view>
         <view class="dual-go">{{masterJoinText}}<view class="ic ic-chev-o ic-xs"></view></view>
       </view>
     </view>
 
-    <view class="footer-tip">师傅和费用都当面确认 · 平台只做信息撮合</view>
+    <!-- 万师傅参考 4: 底部 4 重官方保障卡 -->
+    <view class="trust-guarantee-card">
+      <view class="trust-g-item">
+        <view class="ic ic-shield-f trust-g-ic"></view>
+        <view class="trust-g-t">实名认证</view>
+        <view class="trust-g-s">持证师傅严选</view>
+      </view>
+      <view class="trust-g-item">
+        <view class="ic ic-clock trust-g-ic"></view>
+        <view class="trust-g-t">准时上门</view>
+        <view class="trust-g-s">爽约快速响应</view>
+      </view>
+      <view class="trust-g-item">
+        <view class="ic ic-wallet trust-g-ic"></view>
+        <view class="trust-g-t">透明报价</view>
+        <view class="trust-g-s">当面议价无隐形</view>
+      </view>
+      <view class="trust-g-item">
+        <view class="ic ic-star-gold trust-g-ic"></view>
+        <view class="trust-g-t">售后质保</view>
+        <view class="trust-g-s">官方客服跟进</view>
+      </view>
+    </view>
   </view>
 </view>

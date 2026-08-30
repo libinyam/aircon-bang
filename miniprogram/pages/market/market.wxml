@@ -7,7 +7,7 @@
         <view class="mk-chip {{condition === 'new' ? 'on' : ''}}" bindtap="switchCond" data-key="new">新机</view>
         <view class="mk-chip {{condition === 'used' ? 'on' : ''}}" bindtap="switchCond" data-key="used">二手机</view>
       </view>
-      <view class="mk-note">师傅直卖 · 当面验货</view>
+      <view class="mk-note">师傅直卖,当面验货</view>
     </view>
   </view>
 
@@ -30,7 +30,7 @@
       <button class="btn-ghost mt16 retry-btn" bindtap="retryLoad">重试</button>
     </view>
     <view class="empty" wx:elif="{{loaded && !listings.length}}">
-      <view class="ic il-empty-goods ic-big"></view>
+      <image class="empty-img" src="/assets/market-fallback.png" mode="aspectFit" />
       <view>暂时没有{{condition === 'new' ? '新机' : condition === 'used' ? '二手机' : ''}}在售</view>
       <view class="text-sub mt8">下拉刷新看看</view>
     </view>

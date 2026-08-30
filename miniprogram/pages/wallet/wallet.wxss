@@ -1,15 +1,26 @@
 .page { padding: 24rpx 24rpx 60rpx; }
 
-/* 余额卡:暖色渐变大数字,与接单大厅头部同一气质 */
+/* 余额卡:墨底白字大数字 + 3D 小钱包插画点缀(墨场语言,与订单详情信任卡同源;
+   纯色+零投影为去AI感批次成果,插画资产按用户反馈保留) */
 .w-hero {
-  background: linear-gradient(120deg, #FF8A3D, #F25B15);
+  background: #1E2530;
   border-radius: 24rpx;
-  padding: 44rpx 36rpx 40rpx;
+  padding: 36rpx;
   color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+.w-hero-content { flex: 1; min-width: 0; }
 .w-hero-label { font-size: 26rpx; opacity: 0.9; }
-.w-hero-num { font-size: 76rpx; font-weight: 800; line-height: 1.2; margin-top: 8rpx; font-feature-settings: "tnum"; }
-.w-hero-sub { font-size: 24rpx; opacity: 0.85; margin-top: 10rpx; }
+.w-hero-num { font-size: 72rpx; font-weight: 800; line-height: 1.2; margin-top: 8rpx; font-feature-settings: "tnum"; }
+.w-hero-sub { font-size: 22rpx; opacity: 0.85; margin-top: 10rpx; }
+.w-hero-img {
+  width: 140rpx;
+  height: 140rpx;
+  flex-shrink: 0;
+  margin-left: 20rpx;
+}
 
 /* 充值档位 */
 .w-opts { display: flex; gap: 16rpx; margin-top: 24rpx; }

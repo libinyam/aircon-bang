@@ -1,25 +1,23 @@
-.page { min-height: 100vh; }
+.page { min-height: 100vh; background: #FAF8F5; }
 
-/* ============ 品牌 hero(照片版/渐变回退双版本) ============ */
+/* ============ 品牌 hero(增强万师傅式结构) ============ */
 .hero { position: relative; overflow: hidden; }
-/* 回退版:暖色渐变融入页面背景(去框框);低饱和窄跨度防 banding。
-   顶部色 #FAF0E7 与接单大厅/买空调页头部同源,tab 间切换无色差 */
 .hero--plain {
-  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 55%, #F6F7F9 100%);
+  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 55%, #FAF8F5 100%);
 }
 .hero-bg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-/* 照片版蒙版三层:顶部压暗保 tab 可读,左侧压暗托品牌文字,底部淡出到页面底色 */
 .hero-scrim {
   position: absolute;
   left: 0; top: 0; right: 0; bottom: 0;
   background:
     linear-gradient(180deg, rgba(23, 28, 36, 0.38) 0%, rgba(23, 28, 36, 0) 32%),
     linear-gradient(105deg, rgba(23, 28, 36, 0.55) 0%, rgba(23, 28, 36, 0.16) 52%, rgba(23, 28, 36, 0) 78%),
-    linear-gradient(0deg, #F6F7F9 0%, rgba(246, 247, 249, 0) 20%);
+    linear-gradient(0deg, #FAF8F5 0%, rgba(250, 248, 245, 0) 20%);
 }
-.hero-inner { position: relative; padding: 8rpx 24rpx 4rpx; }
+.hero-inner { position: relative; padding: 8rpx 24rpx 16rpx; }
 
-.role-tabs { display: flex; align-items: flex-end; gap: 34rpx; padding: 10rpx 8rpx 6rpx; }
+.hero-top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10rpx 8rpx 6rpx; }
+.role-tabs { display: flex; align-items: flex-end; gap: 34rpx; }
 .role-tab { font-size: 30rpx; font-weight: 500; color: #667180; padding-bottom: 12rpx; transition: color 0.2s ease; }
 .role-tab.on {
   font-size: 36rpx;
@@ -40,35 +38,44 @@
 .hero--photo .role-tab { color: rgba(255, 255, 255, 0.78); }
 .hero--photo .role-tab.on { color: #fff; }
 
-/* 问候语 → 品牌大字 → 信任口号:三级字号阶梯撑起 hero 的版式气场 */
+.trust-badge {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #C9490C;
+  background: rgba(242, 91, 21, 0.08);
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(242, 91, 21, 0.15);
+}
+.trust-dot { width: 8rpx; height: 8rpx; border-radius: 50%; background: #F25B15; }
+.hero--photo .trust-badge { color: #fff; background: rgba(0, 0, 0, 0.25); border-color: rgba(255, 255, 255, 0.2); }
+.hero--photo .trust-dot { background: #fff; }
+
+/* 问候语 → 品牌大字 → 信任口号 */
 .hero-hi {
-  margin-top: 22rpx;
+  margin-top: 18rpx;
   padding: 0 8rpx;
   font-size: 26rpx;
-  letter-spacing: 2rpx;
   color: #96793B;
   line-height: 1.4;
 }
 .hero-brand {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
   padding: 0 8rpx;
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  font-size: 64rpx;
+  font-size: 58rpx;
   font-weight: 600;
-  letter-spacing: 6rpx;
   line-height: 1.2;
   color: #171C24;
 }
-/* 品牌句点:名字后的品牌橙小方块,品牌记忆点 */
-.hero-mark { width: 14rpx; height: 14rpx; border-radius: 4rpx; background: #F25B15; flex-shrink: 0; }
-.hero-slogan { margin-top: 12rpx; padding: 0 8rpx; font-size: 28rpx; letter-spacing: 1rpx; color: #454F5E; line-height: 1.45; }
+.hero-slogan { margin-top: 10rpx; padding: 0 8rpx; font-size: 26rpx; color: #454F5E; line-height: 1.45; }
 .hero--photo .hero-hi { color: rgba(255, 255, 255, 0.82); }
 .hero--photo .hero-brand { color: #fff; }
 .hero--photo .hero-slogan { color: rgba(255, 255, 255, 0.88); }
 
-/* 搜索发单入口:白胶囊直接嵌在 hero 上(参照严选/京东,去卡套卡) */
+/* 搜索发单入口 */
 .search-card {
   margin-top: 20rpx;
   border-radius: 999rpx;
@@ -77,90 +84,273 @@
 .search-box {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 14rpx;
   background: #fff;
   border: 1rpx solid #ECEEF2;
   border-radius: 999rpx;
-  padding: 22rpx 30rpx;
+  padding: 12rpx 14rpx 12rpx 24rpx;
 }
-/* 搜索胶囊视作浮层:暖色底与照片底上都给一层中性投影托起来 */
+.city-tag {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+.city-text { font-size: 26rpx; font-weight: 600; color: #171C24; }
+.search-divider { width: 1rpx; height: 32rpx; background: #ECEEF2; margin: 0 4rpx; }
 .hero--plain .search-box { box-shadow: 0 8rpx 24rpx rgba(23, 28, 36, 0.07); }
 .hero--photo .search-box { border-color: transparent; box-shadow: 0 8rpx 24rpx rgba(23, 28, 36, 0.16); }
-.search-ph { font-size: 30rpx; font-weight: 400; color: #A9B1BD; }
+.search-ph { font-size: 26rpx; font-weight: 400; color: #A9B1BD; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-btn {
+  background: #F25B15;
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
 
 .body { padding: 0 24rpx 140rpx; }
 
-/* 品类网格:图标直接放底上 */
+/* ============ 优惠横幅 (万师傅 Promo Banner) ============ */
+.promo-banner {
+  margin-top: 20rpx;
+  background: linear-gradient(135deg, #FFF5EB 0%, #FFE9D6 100%);
+  border: 1rpx solid rgba(242, 91, 21, 0.18);
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.promo-left { flex: 1; }
+.promo-tag {
+  display: inline-block;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #C9490C;
+  background: rgba(242, 91, 21, 0.12);
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+  margin-bottom: 6rpx;
+}
+.promo-title { font-size: 28rpx; font-weight: 600; color: #171C24; line-height: 1.3; }
+.promo-desc { font-size: 22rpx; color: #667180; margin-top: 4rpx; }
+.promo-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; }
+.promo-coupon { display: flex; align-items: baseline; color: #F25B15; font-weight: 800; }
+.coupon-unit { font-size: 22rpx; }
+.coupon-val { font-size: 38rpx; line-height: 1; margin: 0 2rpx; }
+.coupon-txt { font-size: 22rpx; font-weight: 600; }
+.promo-btn {
+  background: #F25B15;
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 600;
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+}
+
+/* ============ 区块标题 ============ */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 32rpx;
+  margin-bottom: 16rpx;
+  padding: 0 4rpx;
+}
+.section-title { font-size: 30rpx; font-weight: 600; color: #171C24; }
+.section-more { display: flex; align-items: center; gap: 4rpx; font-size: 24rpx; color: #667180; }
+
+/* ============ 热门服务横滑卡片 (万师傅 Service Cards) ============ */
+.hot-scroll {
+  white-space: nowrap;
+  width: 100%;
+  height: 320rpx;
+  padding: 4rpx 0 10rpx;
+}
+.hot-card {
+  display: inline-block;
+  vertical-align: top;
+  width: 250rpx;
+  height: 300rpx;
+  background: #fff;
+  border: 1rpx solid #ECEEF2;
+  border-radius: 20rpx;
+  padding: 16rpx 16rpx 14rpx;
+  margin-right: 18rpx;
+  position: relative;
+  box-sizing: border-box;
+  box-shadow: 0 4rpx 14rpx rgba(23, 28, 36, 0.03);
+}
+.hot-card:last-child {
+  margin-right: 0;
+}
+.hot-badge {
+  position: absolute;
+  left: 14rpx;
+  top: 14rpx;
+  background: #F25B15;
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  z-index: 2;
+}
+
+/* 实拍图容器: 4:3 比例高质感纯白底+圆角微溢出阴影 */
+.hot-img-box {
+  width: 100%;
+  height: 144rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10rpx;
+  overflow: hidden;
+  position: relative;
+}
+.hot-img--clean { background: #F2F8FD; }
+.hot-img--fluoride { background: #F0FAF5; }
+.hot-img--repair { background: #FCF6F2; }
+.hot-img--move { background: #FDF9F0; }
+.hot-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.hot-name { font-size: 26rpx; font-weight: 600; color: #171C24; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+.hot-sub { font-size: 20rpx; color: #8F9BB3; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+.hot-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12rpx;
+}
+.hot-price { display: flex; align-items: baseline; color: #F25B15; line-height: 1; }
+.hot-p-sym { font-size: 22rpx; font-weight: 600; margin-right: 2rpx; }
+.hot-p-val { font-size: 32rpx; font-weight: 800; font-feature-settings: 'tnum'; }
+.hot-p-unit { font-size: 20rpx; font-weight: 400; color: #667180; margin-left: 2rpx; }
+.hot-p-strike { font-size: 18rpx; font-weight: 400; color: #A9B1BD; text-decoration: line-through; margin-left: 6rpx; }
+.hot-action {
+  background: #FDEBE0;
+  color: #C9490C;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  line-height: 1.4;
+}
+
+/* 品类网格: 3D 黏土微立体高保真图标 */
 .cat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  row-gap: 34rpx;
-  padding: 34rpx 8rpx 8rpx;
+  grid-template-columns: repeat(3, 1fr);
+  row-gap: 28rpx;
+  background: #fff;
+  border: 1rpx solid #ECEEF2;
+  border-radius: 24rpx;
+  padding: 28rpx 12rpx;
 }
-.cat-cell { display: flex; flex-direction: column; align-items: center; gap: 14rpx; }
-.cat-ic { width: 88rpx; height: 88rpx; }
+.cat-cell { display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
+.cat-ic { width: 92rpx; height: 92rpx; border-radius: 24rpx; }
 .cat-name { font-size: 26rpx; color: #454F5E; font-weight: 500; }
 
 /* 区块小标(进行中的单子) */
 .sec-label {
-  margin: 36rpx 8rpx 16rpx;
+  margin: 32rpx 8rpx 14rpx;
   font-size: 26rpx;
   font-weight: 600;
-  letter-spacing: 1rpx;
   color: #667180;
 }
 
-/* 进行中订单细条 */
-.order-strip {
-  margin-top: 20rpx;
+/* 常见服务横滑卡:参考价是行情展示,脚注说清"以上门报价为准",不当平台报价 */
+.hot-label { display: flex; align-items: baseline; gap: 12rpx; }
+.hot-label-sub { font-size: 22rpx; font-weight: 400; color: #A9B1BD; }
+.hot-scroll { width: 100%; }
+.hot-row { display: flex; gap: 16rpx; padding: 4rpx 4rpx 8rpx; }
+.hot-card {
+  flex-shrink: 0;
+  width: 216rpx;
   background: #fff;
   border: 1rpx solid #ECEEF2;
   border-radius: 24rpx;
-  padding: 24rpx 28rpx;
+  padding: 16rpx 16rpx 20rpx;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+/* 图标底:按品类给低饱和暖色块,和页面暖纸底同族,不抢 3D 图标 */
+.hot-ic-wrap {
+  height: 128rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #FDF3EA 0%, #F9E9DC 100%);
+}
+.hot-ic-wrap--repair { background: linear-gradient(160deg, #EDF2FB 0%, #DFE9F8 100%); }
+.hot-ic-wrap--fluoride { background: linear-gradient(160deg, #EAF7F0 0%, #DBF0E5 100%); }
+.hot-ic-wrap--move { background: linear-gradient(160deg, #FDF0E8 0%, #F8E3D6 100%); }
+.hot-ic { width: 84rpx; height: 84rpx; }
+.hot-name { margin-top: 14rpx; font-size: 26rpx; font-weight: 600; color: #171C24; }
+.hot-desc { margin-top: 4rpx; font-size: 22rpx; color: #667180; }
+.hot-price { margin-top: 10rpx; font-size: 28rpx; font-weight: 600; color: #C9490C; }
+.hot-price-tag {
+  margin-right: 6rpx;
+  font-size: 18rpx;
+  font-weight: 500;
+  color: #C9490C;
+  border: 1rpx solid rgba(201, 73, 12, 0.35);
+  border-radius: 6rpx;
+  padding: 1rpx 6rpx;
+  vertical-align: 2rpx;
+}
+.hot-price-qi { font-size: 20rpx; font-weight: 400; color: #96793B; margin-left: 2rpx; }
+
+/* 信任背书条:三项平铺,图标复用 app.wxss 现成填充图标 */
+.trust-bar {
+  margin-top: 28rpx;
+  background: #fff;
+  border: 1rpx solid #ECEEF2;
+  border-radius: 24rpx;
+  padding: 22rpx 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+.trust-item { display: flex; align-items: center; gap: 10rpx; font-size: 24rpx; color: #454F5E; }
+.trust-ic { width: 32rpx; height: 32rpx; }
+
+/* 进行中订单细条 */
+.order-strip {
+  margin-top: 16rpx;
+  background: #fff;
+  border: 1rpx solid #ECEEF2;
+  border-radius: 20rpx;
+  padding: 22rpx 26rpx;
   display: flex;
   align-items: center;
   gap: 18rpx;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.strip-dot { width: 16rpx; height: 16rpx; border-radius: 50%; flex-shrink: 0; }
+.strip-dot { width: 14rpx; height: 14rpx; border-radius: 50%; flex-shrink: 0; }
 .strip-title { font-size: 28rpx; font-weight: 600; }
 .strip-time { font-size: 24rpx; color: #667180; margin-left: 8rpx; }
 
-/* CTA 横幅 */
-.promo {
-  margin-top: 28rpx;
-  background: linear-gradient(100deg, #FA6E2A, #F25B15);
-  border-radius: 24rpx;
-  padding: 26rpx 32rpx;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 10rpx 24rpx rgba(242, 91, 21, 0.25);
-  color: #fff;
-}
-.promo-t { font-size: 32rpx; font-weight: 600; line-height: 1.3; letter-spacing: 1rpx; }
-.promo-s { font-size: 24rpx; opacity: 0.85; margin-top: 4rpx; }
-.promo-go {
-  width: 92rpx; height: 92rpx;
-  border-radius: 50%;
-  background: #fff;
-  color: #F25B15;
-  font-size: 30rpx;
-  font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
-}
-
-/* 双列入口卡(买空调 / 师傅接单):竖版小卡打破横条堆叠的节奏 */
+/* 双列入口卡(买空调 / 师傅接单) */
 .dual-row {
   margin-top: 24rpx;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20rpx;
+  gap: 18rpx;
 }
 .dual-card {
   background: #fff;
   border: 1rpx solid #ECEEF2;
   border-radius: 24rpx;
-  padding: 28rpx 24rpx 24rpx;
+  padding: 26rpx 22rpx 22rpx;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -169,25 +359,44 @@
 .dual-ic {
   width: 80rpx;
   height: 80rpx;
-  border-radius: 24rpx;
-  background: #FDEBE0;
+  border-radius: 20rpx;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.dual-ic .ic { width: 44rpx; height: 44rpx; }
-.dual-ic--green { background: #E3F2EC; }
-.dual-t { margin-top: 18rpx; font-size: 30rpx; font-weight: 600; line-height: 1.3; color: #171C24; }
-.dual-s { margin-top: 6rpx; font-size: 24rpx; line-height: 1.5; color: #667180; }
+.dual-ic .ic, .dual-ic-3d { width: 80rpx; height: 80rpx; border-radius: 20rpx; }
+.dual-ic--blue { background: transparent; }
+.dual-t { margin-top: 16rpx; font-size: 28rpx; font-weight: 600; line-height: 1.3; color: #171C24; }
+.dual-s { margin-top: 6rpx; font-size: 22rpx; line-height: 1.4; color: #667180; }
 .dual-go {
-  margin-top: 18rpx;
+  margin-top: 16rpx;
   display: flex;
   align-items: center;
   gap: 4rpx;
-  font-size: 26rpx;
+  font-size: 24rpx;
   font-weight: 600;
   color: #C9490C;
 }
-.dual-card--green .dual-go { color: #0E7A4F; }
+.dual-card--blue .dual-go { color: #2563EB; }
 
-.footer-tip { text-align: center; color: #A9B1BD; font-size: 24rpx; padding: 28rpx 0 8rpx; }
+/* ============ 底部 4 重官方保障卡 (万师傅 Trust Guarantee) ============ */
+.trust-guarantee-card {
+  margin-top: 28rpx;
+  background: #fff;
+  border: 1rpx solid #ECEEF2;
+  border-radius: 24rpx;
+  padding: 24rpx 16rpx;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8rpx;
+}
+.trust-g-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.trust-g-ic { width: 36rpx; height: 36rpx; margin-bottom: 8rpx; }
+.trust-g-t { font-size: 24rpx; font-weight: 600; color: #171C24; }
+.trust-g-s { font-size: 20rpx; color: #8F9BB3; margin-top: 2rpx; transform: scale(0.95); }

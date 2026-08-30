@@ -98,7 +98,7 @@ describe('custom-tab-bar 乐观切换:点任何 tab 都不被云调用阻塞', (
   })
 })
 
-describe('pool.refresh 的角色收敛', () => {
+describe('pool.refresh 的角色收敛(强刷职责从 tabBar 移到页内)', () => {
   function deferred() {
     let resolve, reject
     const p = new Promise((res, rej) => { resolve = res; reject = rej })
@@ -122,6 +122,8 @@ describe('pool.refresh 的角色收敛', () => {
       showToast() {},
       showModal() {},
       makePhoneCall() {},
+      getStorageSync: () => '',
+      setStorageSync() {},
       getLocation: jest.fn(() => { const d = deferred(); locDeferreds.push(d); return d.p }),
       cloud: {
         callFunction({ name, data }) {

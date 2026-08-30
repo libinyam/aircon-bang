@@ -19,7 +19,7 @@ module.exports = {
       if (global.__mockCloudPay) return global.__mockCloudPay(opt)
       return { payment: { timeStamp: '1', nonceStr: 'n', package: 'prepay_id=x', signType: 'MD5', paySign: 's' }, returnCode: 'SUCCESS' }
     },
-    // 订单反查(payCallback 入账前核验):默认已支付;__mockQueryOrder(opt) 注入异常/未支付/金额不符
+    // 订单反查:默认已支付;__mockQueryOrder(opt) 注入异常/未支付/金额不符
     async queryOrder(opt) {
       if (global.__mockQueryOrder) return global.__mockQueryOrder(opt)
       return { returnCode: 'SUCCESS', resultCode: 'SUCCESS', tradeState: 'SUCCESS' }
@@ -34,6 +34,13 @@ module.exports = {
     // 测试可通过 global.__mockDownload(返回 Buffer 的函数)提供文件内容,如合法 JPEG 魔数
     if (global.__mockDownload) return { fileContent: global.__mockDownload() }
     return { fileContent: Buffer.alloc(0) }
+  },
+  async uploadFile({ cloudPath, fileContent }) {
+    // 测试可通过 global.__mockUpload(cloudPath, fileContent) 注入失败/自定义返回;
+    // __uploadedPaths(数组)收集 cloudPath 做"匿名路径不含 openid"断言
+    if (global.__uploadedPaths) global.__uploadedPaths.push(cloudPath)
+    if (global.__mockUpload) return global.__mockUpload(cloudPath, fileContent)
+    return { fileID: 'cloud://test-env/' + cloudPath }
   },
   async deleteFile({ fileList }) {
     // 测试可通过 global.__deletedFiles(数组)收集删除调用做断言;

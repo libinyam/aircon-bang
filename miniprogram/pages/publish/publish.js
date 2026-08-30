@@ -1,4 +1,4 @@
-const { CATEGORIES, SLOTS, SCENES } = require('../../utils/constants')
+const { CATEGORIES, SLOTS, EQUIP_TYPES } = require('../../utils/constants')
 const { parseCity, isValidPhone, callFn, formatDate, imageExt } = require('../../utils/util')
 const config = require('../../utils/config')
 
@@ -6,18 +6,15 @@ Page({
   data: {
     // 磁贴选中态存 item.on(WXML 插值不能调方法,选中态用数据路径,见 test/wxmlExpr.test.js)
     categories: CATEGORIES.map(c => Object.assign({}, c, { on: false })),
-    scenes: SCENES.map(s => ({
-      key: s.key,
-      name: s.name,
-      tip: s.key === 'home' ? '挂机 / 柜机等家用空调' : '中央空调 / 多联机 / 商铺机组'
-    })),
+    // 设备类型 8 选 1(爸爸生意的实际维修范围):选定后家用/商用费档由服务端按设备推导
+    equipTypes: EQUIP_TYPES,
     symptoms: ['不制冷', '漏水', '异响', '不开机', '遥控失灵'],
     timeSlots: SLOTS.map(s => s.label),
     today: formatDate(new Date()),
     photos: [],          // 本地临时路径,提交时统一上传
     form: {
       categories: [],    // 品类多选全集(维修+清洗+加氟…),提交原样上送
-      scene: 'home', desc: '', address: '', addressDetail: '',
+      equipType: '', desc: '', address: '', addressDetail: '',
       location: null, cityName: '', date: '', slot: '', slotKey: '',
       phone: '', contactName: ''
     },
@@ -56,7 +53,7 @@ Page({
     this.applyCategories(cur.includes(key) ? cur.filter(k => k !== key) : cur.concat(key))
   },
 
-  pickScene(e) { this.setData({ 'form.scene': e.currentTarget.dataset.key }) },
+  pickEquip(e) { this.setData({ 'form.equipType': e.currentTarget.dataset.key }) },
 
   // 快捷故障标签:点一下追加进描述
   addSymptom(e) {
@@ -120,7 +117,7 @@ Page({
   async submit() {
     const f = this.data.form
     if (!f.categories.length) return wx.showToast({ title: '请选择服务类型(可多选)', icon: 'none' })
-    if (!f.scene) return wx.showToast({ title: '请选择空调类型(家用/商用)', icon: 'none' })
+    if (!f.equipType) return wx.showToast({ title: '请选择要修的设备', icon: 'none' })
     if (!f.desc || f.desc.trim().length < 5) return wx.showToast({ title: '请描述故障情况(至少5个字)', icon: 'none' })
     if (!f.location) return wx.showToast({ title: '请选择上门地址', icon: 'none' })
     if (!f.date || !f.slotKey) return wx.showToast({ title: '请选择期望上门时间', icon: 'none' })
@@ -172,7 +169,7 @@ Page({
       const res = await callFn('publishOrder', {
         requestId: this._requestId,
         categories: f.categories,
-        scene: f.scene,
+        equipType: f.equipType,
         desc: f.desc,
         photos: fileIDs,
         location: f.location,
@@ -185,10 +182,20 @@ Page({
         contactName: f.contactName
       })
 
-      wx.showToast({ title: '发布成功', icon: 'success' })
-      setTimeout(() => {
-        wx.redirectTo({ url: `/pages/orderDetail/orderDetail?id=${res.orderId}` })
-      }, 800)
+      const goDetail = () => wx.redirectTo({ url: `/pages/orderDetail/orderDetail?id=${res.orderId}` })
+      // 该品类同城暂无可见师傅:订单照发,但把预期说在前面,不让用户干等
+      if (res.noMaster) {
+        wx.showModal({
+          title: '发布成功',
+          content: '当前城市做这个品类的师傅还很少,接单可能较慢。订单会一直挂着,也可以打客服电话请平台帮忙协调。',
+          confirmText: '查看订单',
+          showCancel: false,
+          success: goDetail
+        })
+      } else {
+        wx.showToast({ title: '发布成功', icon: 'success' })
+        setTimeout(goDetail, 800)
+      }
     } catch (e) {
       // callFn 已弹过错误提示
     } finally {

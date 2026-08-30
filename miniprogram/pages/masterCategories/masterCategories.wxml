@@ -1,0 +1,16 @@
+<view class="container" wx:if="{{!loading}}">
+  <view class="card">
+    <view class="form-label"><text class="required">*</text>我能修/能装的服务(可多选)</view>
+    <view class="text-sub mt8">勾选后会立即生效:接单大厅按所选品类匹配订单,取消勾选的品类不再看到新单</view>
+    <view class="cat-row">
+      <view class="cat-chip {{catOn[item.key] ? 'chip-active' : ''}}"
+            wx:for="{{categories}}" wx:key="key" bindtap="toggleCategory" data-key="{{item.key}}">
+        {{item.name}}
+      </view>
+    </view>
+  </view>
+
+  <button class="btn-cta" hover-class="hv-press" bindtap="save" disabled="{{saving}}">
+    {{saving ? '保存中…' : '保存'}}
+  </button>
+</view>

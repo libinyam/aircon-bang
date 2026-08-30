@@ -1,0 +1,16 @@
+.cat-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 20rpx; }
+.cat-chip {
+  padding: 14rpx 28rpx;
+  background: #F6F7F9;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  border: 2rpx solid transparent;
+}
+.chip-active {
+  background: #FDEBE0;
+  color: #C9490C;
+  border-color: #F25B15;
+  font-weight: 600;
+}
+
+.btn-cta { margin-top: 32rpx; }

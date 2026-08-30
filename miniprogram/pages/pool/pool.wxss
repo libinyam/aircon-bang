@@ -2,7 +2,7 @@
    导航栏(#FAF0E7)下也能平滑过渡到灰底,不出现色差断层 */
 .page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 160rpx, #F6F7F9 340rpx);
+  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 160rpx, #FAF8F5 340rpx);
 }
 .container { padding: 24rpx; }
 
@@ -33,7 +33,7 @@
 
 /* 大厅头部:暖色渐变(与首页同款,跨页一致) */
 .hall-head {
-  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 60%, #F6F7F9 100%);
+  background: linear-gradient(180deg, #FAF0E7 0%, #F8F3ED 60%, #FAF8F5 100%);
   padding: 16rpx 24rpx 4rpx;
 }
 .filter-row {
@@ -65,7 +65,6 @@
   margin: 28rpx 8rpx 4rpx;
   font-size: 26rpx;
   font-weight: 600;
-  letter-spacing: 1rpx;
   color: #667180;
 }
 .my-strip {
@@ -99,6 +98,15 @@
 .o-badge-hot { color: #fff; background: #F25B15; }
 .o-desc { font-size: 26rpx; color: #454F5E; margin-top: 10rpx; line-height: 1.5;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* 现场照片缩略行:与照片网格同语言的小号版,3 张 + 溢出计数 */
+.o-thumbs { display: flex; gap: 12rpx; margin-top: 12rpx; }
+.o-thumb { width: 96rpx; height: 96rpx; border-radius: 12rpx; background: #F6F7F9; }
+.o-thumb-more {
+  width: 96rpx; height: 96rpx; border-radius: 12rpx;
+  background: #F1F3F6; color: #667180;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26rpx; font-weight: 500;
+}
 .o-dist { text-align: right; margin-left: 20rpx; flex-shrink: 0; }
 .o-dist-num { font-size: 38rpx; font-weight: 800; color: #171C24; line-height: 1.1; font-feature-settings: "tnum"; }
 .o-dist-num.near { color: #F25B15; }
@@ -126,3 +134,19 @@
 .o-meta { font-size: 24rpx; color: #667180; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .o-meta-addr { color: #454F5E; }
 .o-foot .btn-cta-sm { flex-shrink: 0; margin-left: 20rpx; }
+
+/* 缺品类提醒条(issue #165):琥珀底警示,与钱包警示条同色系 */
+.cat-gap-bar {
+  display: flex; align-items: center; gap: 16rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 18rpx 24rpx;
+  background: #FDF3E3;
+  border-radius: 16rpx;
+}
+.cat-gap-text { font-size: 24rpx; color: #8A5A00; line-height: 1.5; }
+.cat-gap-go { flex-shrink: 0; font-size: 24rpx; font-weight: 600; color: #C9490C; }
+.cat-gap-close {
+  flex-shrink: 0; width: 36rpx; height: 36rpx; border-radius: 50%;
+  background: rgba(138, 90, 0, 0.35);
+  display: flex; align-items: center; justify-content: center;
+}

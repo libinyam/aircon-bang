@@ -68,7 +68,7 @@ exports.main = async (event) => {
   }
 
   // 原子抢单:仅当订单仍是"待接单"、同城、未过期且不是自己发的,才写入接单信息
-  // cityKey 条件封死绕过订单池直接跨城抢单(归一化匹配键,);
+  // cityKey 条件封死绕过订单池直接跨城抢单(归一化匹配键);
   // publishedAt 条件兜住定时器间隙内的过期单;
   // 品类与池同规则(多选发单):老单按 category、新单按 categories 任一交集
   const res = await db.collection('orders').where(_.and([

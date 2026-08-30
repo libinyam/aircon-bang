@@ -189,7 +189,7 @@ test('mine 分享行的左右布局已提权,且里层 .cell 撑满整行', () =
   expect(/\.share-cell\s+\.cell::after\s*\{[^}]*display:\s*block/.test(wxss)).toBe(true)
 })
 
-// 功能列表的图标必须来自双色调家族(主体 #454F5E + 一个 #F25B15 点缀)。
+// 功能列表的图标必须来自双色调家族。
 // 「我的上架」曾直接复用 tabBar 的 .ic-tab-shop(整体 #A9B1BD 灰态),在白卡上比左侧邻居
 // 淡一大截,被判定为"图标太淡"(2026-08)。灰态类是 tabBar 未选中专用,不进列表行。
 test('mine 功能列表不使用 tabBar 灰态图标(白卡上明显偏淡)', () => {

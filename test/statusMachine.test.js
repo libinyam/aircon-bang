@@ -1,4 +1,4 @@
-// 订单状态机守护(,并覆盖 的字面量漂移防线)
+// 订单状态机守护
 // 三层防护:前后端定义同源 → 流转表与文档一致 → 源码不再出现裸状态字面量
 const fs = require('fs')
 const path = require('path')
@@ -20,9 +20,24 @@ describe('前后端状态定义同源', () => {
   test('ACTIVE_STATUSES 是文档口径的进行中三态', () => {
     expect(biz.ACTIVE_STATUSES.sort()).toEqual(['accepted', 'pending_confirm', 'published'])
   })
+  test('品类同源:前端 CATEGORIES 的 key/name/shortName == biz 的 CATEGORY_KEYS/NAMES/SHORTS', () => {
+    expect(constants.CATEGORIES.map(c => c.key)).toEqual(biz.CATEGORY_KEYS)
+    for (const c of constants.CATEGORIES) {
+      expect(biz.CATEGORY_NAMES[c.key]).toBe(c.name)
+      expect(biz.CATEGORY_SHORTS[c.key]).toBe(c.shortName)
+    }
+  })
+  test('设备类型同源:前端 EQUIP_TYPES 的 key/scene/name == biz.EQUIP_TYPES', () => {
+    expect(constants.EQUIP_TYPES.map(t => t.key).sort()).toEqual(biz.EQUIP_TYPE_KEYS.sort())
+    for (const t of constants.EQUIP_TYPES) {
+      expect(biz.EQUIP_TYPES[t.key].name).toBe(t.name)
+      expect(biz.EQUIP_TYPES[t.key].scene).toBe(t.scene)
+      expect(biz.SCENE_KEYS).toContain(t.scene)
+    }
+  })
 })
 
-describe('流转表与状态机设计一致', () => {
+describe('流转表与 CLAUDE.md 状态机一致', () => {
   // published → accepted → pending_confirm → completed;前置态可 cancelled;pending_confirm 可驳回退 accepted
   test.each([
     ['published', ['accepted', 'cancelled']],

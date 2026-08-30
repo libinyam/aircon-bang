@@ -1,15 +1,25 @@
 <view class="page">
-  <view class="head-note">发布免费 · 费用与师傅当面结算</view>
+  <!-- 万师傅参考: 顶部价格信任条 -->
+  <view class="trust-bar">
+    <view class="trust-item"><view class="ic ic-check-w trust-item-ic"></view><text>免费发布</text></view>
+    <view class="trust-sep">·</view>
+    <view class="trust-item"><view class="ic ic-check-w trust-item-ic"></view><text>师傅快速响应</text></view>
+    <view class="trust-sep">·</view>
+    <view class="trust-item"><view class="ic ic-check-w trust-item-ic"></view><text>当面谈价满意再修</text></view>
+  </view>
 
   <view class="body">
-      <!-- 服务类型:四小磁贴 + 选中角标(可多选,如维修+清洗一起要) -->
-      <view class="card">
-        <view class="sec-title">这次需要什么服务?(可多选)</view>
-        <view class="svc-row">
-          <view class="svc-cell {{item.on ? 'svc-on' : ''}}"
+    <!-- 服务类型: 6 大品类磁贴(可多选) -->
+    <view class="card">
+      <view class="sec-head">
+        <view class="sec-title">需要什么服务?(可多选)</view>
+        <view class="sec-tip">按需组合</view>
+      </view>
+      <view class="svc-row">
+        <view class="svc-cell {{item.on ? 'svc-on' : ''}}"
               wx:for="{{categories}}" wx:key="key"
               bindtap="pickCategory" data-key="{{item.key}}">
-          <view class="ic ic-cat-{{item.key}}-{{item.on ? 'on' : 'g'}} svc-ic"></view>
+          <view class="ic ic-cat-{{item.key}} svc-ic"></view>
           <text class="svc-name">{{item.shortName}}</text>
           <view class="svc-check" wx:if="{{item.on}}"><view class="ic ic-check-w ic-xs"></view></view>
         </view>
@@ -17,27 +27,33 @@
 
       <view class="divider"></view>
 
-      <!-- 家用/商用:决定师傅接单费档位(家用 ¥20/单、商用 ¥300/单),发单时必选 -->
-      <view class="sec-title">空调类型?</view>
-      <view class="scene-row">
-        <view class="scene-cell {{form.scene === item.key ? 'scene-on' : ''}}"
-              wx:for="{{scenes}}" wx:key="key"
-              bindtap="pickScene" data-key="{{item.key}}">
+      <!-- 设备类型 8 选 1 -->
+      <view class="sec-head">
+        <view class="sec-title">修什么设备?</view>
+        <view class="sec-tip">单选</view>
+      </view>
+      <view class="equip-grid">
+        <view class="scene-cell {{form.equipType === item.key ? 'scene-on' : ''}}"
+              wx:for="{{equipTypes}}" wx:key="key"
+              bindtap="pickEquip" data-key="{{item.key}}">
           <text class="scene-name">{{item.name}}</text>
           <text class="scene-sub">{{item.tip}}</text>
-          <view class="svc-check" wx:if="{{form.scene === item.key}}"><view class="ic ic-check-w ic-xs"></view></view>
+          <view class="svc-check" wx:if="{{form.equipType === item.key}}"><view class="ic ic-check-w ic-xs"></view></view>
         </view>
       </view>
 
       <view class="divider"></view>
 
       <!-- 故障描述 + 快捷标签 -->
-      <view class="sec-title">空调怎么了?</view>
-      <textarea class="form-textarea mt16" placeholder="例:格力挂机,开机后不制冷,外机风扇不转,用了大概5年"
+      <view class="sec-head">
+        <view class="sec-title">空调怎么了?</view>
+        <view class="sec-tip">支持点选标签</view>
+      </view>
+      <textarea class="form-textarea mt16" placeholder="例: 格力挂机,开机后不制冷,外机风扇不转,用了大概5年"
                 maxlength="500" value="{{form.desc}}" bindinput="onInput" data-field="desc"/>
       <view class="sym-row">
         <view class="sym-chip" wx:for="{{symptoms}}" wx:key="*this"
-              bindtap="addSymptom" data-s="{{item}}">{{item}}</view>
+              bindtap="addSymptom" data-s="{{item}}">+ {{item}}</view>
       </view>
 
       <!-- 照片 -->
@@ -51,7 +67,7 @@
       </view>
     </view>
 
-    <!-- 地址 / 时间 / 联系方式:合并列表卡 -->
+    <!-- 地址 / 时间 / 联系方式: 合并列表卡 -->
     <view class="card list-card">
       <view class="li" bindtap="chooseLocation">
         <view class="li-dot li-dot-addr"></view>
@@ -78,7 +94,6 @@
         </picker>
         <view class="ic ic-chev ic-sm"></view>
       </view>
-      <!-- 手机号/称呼拆两行:窄屏不再挤换行(v4 文字换行修复) -->
       <view class="li">
         <view class="li-dot li-dot-phone"></view>
         <input class="li-input flex-1" type="number" maxlength="11" placeholder="联系手机号"
@@ -96,8 +111,8 @@
   <!-- 吸底发单栏 -->
   <view class="sticky-bar">
     <button class="btn-cta" hover-class="hv-press" bindtap="submit" disabled="{{submitting}}">
-      {{submitting ? '发布中…' : '免费发单'}}
+      {{submitting ? '发布中…' : '立即免费发单'}}
     </button>
-    <view class="sticky-note">费用与师傅当面结算,平台不代收</view>
+    <view class="sticky-note">费用与师傅当面结算 · 平台不代收中介费</view>
   </view>
 </view>

@@ -1,5 +1,5 @@
 const { formatDate, relTime, distanceKm, callFn, mergeById, formatFee } = require('../../utils/util')
-const { categoryShort, slotShort, sceneName, grabFee, ORDER_STATUS } = require('../../utils/constants')
+const { CATEGORIES, categoryShort, slotShort, sceneName, grabFee, ORDER_STATUS } = require('../../utils/constants')
 const config = require('../../utils/config')
 
 Page({
@@ -14,6 +14,7 @@ Page({
     showOrders: [],        // 应用排序后的展示数据
     catTabs: [],
     activeCat: '',
+    catGapText: '',      // 缺品类提醒文案,空串不显示
     sortBy: 'time',        // time=最新优先 / distance=距离优先
     page: 0,
     noMore: false,
@@ -54,7 +55,14 @@ Page({
       const catTabs = [{ key: '', name: '全部' }].concat(
         (m.categories || []).map(k => ({ key: k, name: categoryShort(k) }))
       )
-      this.setData({ state: 'approved', master: m, catTabs })
+      // 缺品类提醒:档案没勾全的品类,大厅匹配不到对应单(冷库/水冷扩容后存量师傅全中)。
+      // 缺口集合作为缓存键:师傅关闭提醒后,只有出现新缺口(下次扩品类)才再提示
+      const missing = CATEGORIES.map(c => c.key).filter(k => !(m.categories || []).includes(k))
+      let catGapText = ''
+      if (missing.length && wx.getStorageSync('catGapDismissed') !== missing.join(',')) {
+        catGapText = `平台已支持${missing.map(categoryShort).join('、')},你的档案未勾选,这类单不会出现在大厅`
+      }
+      this.setData({ state: 'approved', master: m, catTabs, catGapText })
       return true
     }
     const g = await getApp().getUser()
@@ -76,11 +84,14 @@ Page({
     }
   },
 
-  // 我接的进行中订单:大厅置顶细条。辅助信息,静默失败留日志即可(与首页 loadActiveOrders 同口径)
+  // 我接的进行中订单:大厅置顶细条。辅助信息,静默失败留日志即可(与首页 loadActiveOrders 同口径)。
+  // silent 要真接上 callFn:静默刷新不该因网络抖动在大厅平白弹"网络异常";
+  // 独立代次(_activeGen):快速切 tab 造成并发时,晚到的旧快照不能覆盖新快照
   async loadMyActive() {
-    const res = await callFn('getOrders', { action: 'masterList', activeOnly: true })
+    const gen = this._activeGen = (this._activeGen || 0) + 1
+    const res = await callFn('getOrders', { action: 'masterList', activeOnly: true }, { silent: true })
       .catch(e => { console.error('loadMyActive failed', e); return null })
-    if (res) this.setData({ myActive: res.data })
+    if (res && gen === this._activeGen) this.setData({ myActive: res.data })
   },
 
   async loadPool(page = 0) {
@@ -119,7 +130,7 @@ Page({
           distanceNum,
           near: distanceNum > 0 && distanceNum < 3,
           urgentText,
-          sceneLabel: sceneName(o.scene) || '家用', // 老订单无 scene 按家用(与 grabOrder 口径一致)
+          sceneLabel: o.equipTypeName || sceneName(o.scene) || '家用', // 设备类型优先,老单回退家用/商用(费档与 grabOrder 口径一致)
           feeText: formatFee(grabFee(o.scene)),
           pubText: relTime(o.publishedAt) + '发布'
         })
@@ -188,6 +199,12 @@ Page({
 
   retryLoad() { this.loadPool(0) },
   goApply() { wx.navigateTo({ url: '/pages/masterApply/masterApply' }) },
+  goCategories() { wx.navigateTo({ url: '/pages/masterCategories/masterCategories' }) },
+  dismissCatGap() {
+    const missing = CATEGORIES.map(c => c.key).filter(k => !(this.data.master.categories || []).includes(k))
+    wx.setStorageSync('catGapDismissed', missing.join(','))
+    this.setData({ catGapText: '' })
+  },
   goWallet() { wx.navigateTo({ url: '/pages/wallet/wallet' }) },
   goDetail(e) { wx.navigateTo({ url: `/pages/orderDetail/orderDetail?id=${e.currentTarget.dataset.id}` }) },
   callService() { wx.makePhoneCall({ phoneNumber: config.SERVICE_PHONE }) },
@@ -214,7 +231,7 @@ Page({
   async grab(e) {
     const orderId = e.currentTarget.dataset.id
     const order = this.data.orders.find(o => o._id === orderId) || {}
-    const sceneText = sceneName(order.scene) || '家用'
+    const sceneText = order.equipTypeName || sceneName(order.scene) || '家用'
     const feeText = formatFee(grabFee(order.scene))
     // 扣费动作先确认再下单:商用单 ¥300 不是小数,误触代价高
     const confirmed = await new Promise(resolve => {

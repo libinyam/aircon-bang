@@ -6,11 +6,11 @@
   <view class="container" wx:elif="{{state === 'guest'}}">
     <view class="join-hero">
       <view class="join-title">成为平台空调师傅</view>
-      <view class="join-sub">同城订单直达 · 接单自由 · 多劳多得</view>
+      <view class="join-sub">同城订单直达,接不接自己定</view>
     </view>
     <view class="card">
       <view class="jp"><view class="ic ic-shield-f"></view><view class="flex-1"><view class="jp-t">维修费当面结算</view><view class="text-sub">客户直接付给你,平台不抽单佣金</view></view></view>
-      <view class="jp"><view class="ic ic-wallet"></view><view class="flex-1"><view class="jp-t">按单付费接单</view><view class="text-sub">家用单 ¥20/单 · 商用单 ¥300/单,维修费全额归你</view></view></view>
+      <view class="jp"><view class="ic ic-wallet"></view><view class="flex-1"><view class="jp-t">按单付费接单</view><view class="text-sub">家用 ¥20/单、商用 ¥300/单,维修费全额归你</view></view></view>
       <view class="jp"><view class="ic ic-join-sq"></view><view class="flex-1"><view class="jp-t">实名审核上岗</view><view class="text-sub">认证标识让客户更信任你</view></view></view>
       <button class="btn-cta mt16" hover-class="hv-press" bindtap="goApply">立即申请入驻</button>
     </view>
@@ -53,7 +53,7 @@
         <view class="ic ic-wallet ic-sm"></view>
         <view class="flex-1 gold-main">
           <view class="gold-title {{lowBalance ? 'gold-title--warn' : ''}}">钱包余额 ¥{{balanceText}}</view>
-          <view class="gold-sub {{lowBalance ? 'gold-sub--warn' : ''}}">{{lowBalance ? '余额不足,充值后即可抢单(家用 ¥20 / 商用 ¥300)' : '接单自动扣服务费 · 家用 ¥20 / 商用 ¥300'}}</view>
+          <view class="gold-sub {{lowBalance ? 'gold-sub--warn' : ''}}">{{lowBalance ? '余额不足,充值后即可抢单(家用 ¥20 / 商用 ¥300)' : '接单自动扣服务费:家用 ¥20,商用 ¥300'}}</view>
         </view>
         <view class="gold-btn {{lowBalance ? 'gold-btn--brand' : ''}}" bindtap="goWallet">{{lowBalance ? '去充值' : '充值'}}</view>
       </view>
@@ -71,13 +71,21 @@
       </view>
     </view>
 
+    <!-- 缺品类提醒:品类扩容后档案没勾全的师傅看不到对应品类的单;
+         同一缺口集合可关闭不再提醒,下次扩品类出现新缺口会再提示 -->
+    <view class="cat-gap-bar" wx:if="{{catGapText}}" bindtap="goCategories" hover-class="hv-cell">
+      <view class="flex-1 cat-gap-text">{{catGapText}}</view>
+      <view class="cat-gap-go">去补充</view>
+      <view class="cat-gap-close" catchtap="dismissCatGap"><view class="ic ic-close-w ic-xs"></view></view>
+    </view>
+
     <view class="hall-body">
       <!-- 我接的进行中订单:接走的单会从下方大厅消失,置顶细条让师傅第一眼找回(与首页同款样式) -->
       <view wx:if="{{myActive.length}}">
         <view class="sec-label">我接的单</view>
         <view class="my-strip" hover-class="hv-press" wx:for="{{myActive}}" wx:key="_id"
               bindtap="goDetail" data-id="{{item._id}}">
-          <view class="strip-dot" style="background:{{statusMap[item.status].color}};box-shadow:0 0 0 7rpx {{statusMap[item.status].color}}22"></view>
+          <view class="strip-dot" style="background:{{statusMap[item.status].color}}"></view>
           <text class="strip-title">{{item.categoryName}} · {{statusMap[item.status].label}}</text>
           <text class="strip-time flex-1">{{item.expectTime}}</text>
           <view class="ic ic-chev ic-sm"></view>
@@ -107,7 +115,7 @@
         <button class="btn-ghost mt16 retry-btn" bindtap="retryLoad">重试</button>
       </view>
       <view class="empty" wx:elif="{{loaded && !showOrders.length}}">
-        <view class="ic il-empty-order ic-big"></view>
+        <image class="empty-img" src="/assets/empty-orders.png" mode="aspectFit" />
         <view>{{serviceCity}}暂时没有待接订单</view>
         <view class="text-sub mt8">{{showSubscribe ? '点上方「开启新订单提醒」,来单第一时间告诉你' : '下拉刷新看看'}}</view>
       </view>
@@ -119,8 +127,16 @@
               <text class="o-title">{{item.categoryName}}</text>
               <view class="o-badge {{item.scene === 'commercial' ? 'o-badge-hot' : 'o-badge-plain'}}">{{item.sceneLabel}}</view>
               <view class="o-badge" wx:if="{{item.urgentText}}">{{item.urgentText}}</view>
+              <view class="o-badge o-badge-plain" wx:if="{{item.photoCount && !item.photos.length}}">{{item.photoCount}}张图</view>
             </view>
             <view class="o-desc">{{item.desc}}</view>
+            <!-- 现场照片缩略:云函数只下发换链后的临时 URL,最多 3 张;
+                 云函数未部署/换链失败时 photos 为空,由上方 photoCount 角标兜底 -->
+            <view class="o-thumbs" wx:if="{{item.photos.length}}">
+              <image wx:for="{{item.photos}}" wx:for-item="p" wx:key="*this"
+                     class="o-thumb" src="{{p}}" mode="aspectFill" lazy-load/>
+              <view class="o-thumb-more" wx:if="{{item.photoCount > 3}}">+{{item.photoCount - 3}}</view>
+            </view>
           </view>
           <view class="o-dist" wx:if="{{item.distanceNum}}">
             <view class="o-dist-num {{item.near ? 'near' : ''}}">{{item.distanceNum}}<text class="o-dist-unit"> km</text></view>

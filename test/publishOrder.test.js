@@ -63,6 +63,7 @@ describe('参数闸门', () => {
     ['品类空数组', { categories: [] }, '服务类型'],
     ['缺场景(家用/商用)', { scene: undefined }, '空调类型'],
     ['非法场景', { scene: 'office' }, '空调类型'],
+    ['非法设备类型', { equipType: 'rocket' }, '设备类型'],
     ['描述太短', { desc: '坏了' }, '至少5个字'],
     ['描述超长', { desc: 'x'.repeat(501) }, '太长'],
     ['缺定位', { location: null }, '上门地址'],
@@ -231,6 +232,21 @@ describe('品类多选', () => {
     expect(fx.orders[0].categoryName).toBe('空调清洗+空调维修')
   })
 
+  test('新品类:冷库设备维修/水冷机组维修照常落库并拼名', async () => {
+    const fx = fixtures()
+    const { res } = await publish(Object.assign(baseEvent(), { categories: ['coldRepair', 'chillerRepair'] }), fx)
+    expect(res.ok).toBe(true)
+    expect(fx.orders[0].categories).toEqual(['coldRepair', 'chillerRepair'])
+    expect(fx.orders[0].categoryName).toBe('冷库设备维修+水冷机组维修')
+  })
+
+  test('六品类全选短名拼接不超订阅消息 thing 20 字上限', () => {
+    const { CATEGORY_KEYS, categoryText } = require('../cloudfunctions/_shared/biz')
+    const text = categoryText(CATEGORY_KEYS, true)
+    expect(text).toBe('维修+冷库+水冷+清洗+加氟+移机')
+    expect(text.length).toBeLessThanOrEqual(20)
+  })
+
   test('重复勾选去重;老客户端单选 category 字符串照常建单', async () => {
     const fx = fixtures()
     await publish(Object.assign(baseEvent(), { categories: ['repair', 'repair'] }), fx)
@@ -293,6 +309,33 @@ describe('订单号按北京时间生成,不依赖宿主时区', () => {
     expect(res.ok).toBe(true)
     expect(fx.orders[0].scene).toBe('commercial')
     expect(fx.orders[0].sceneName).toBe('商用')
+  })
+
+  test('设备类型推导 scene:家用中央空调落 home,冷库机组落 commercial,客户端传的 scene 不作数', async () => {
+    const fx = fixtures()
+    // 新客户端:只传 equipType
+    const ev1 = baseEvent(); delete ev1.scene
+    const { res: r1 } = await publish(Object.assign(ev1, { equipType: 'homeCentral' }), fx)
+    expect(r1.ok).toBe(true)
+    expect(fx.orders[0].scene).toBe('home')
+    expect(fx.orders[0].sceneName).toBe('家用')
+    expect(fx.orders[0].equipType).toBe('homeCentral')
+    expect(fx.orders[0].equipTypeName).toBe('家用中央空调')
+
+    // 冷库机组 -> 商用档;客户端伪造 scene=home 被服务端推导覆盖(费率信任边界)
+    const fx2 = fixtures()
+    const { res: r2 } = await publish(Object.assign(baseEvent(), { equipType: 'coldStore', scene: 'home' }), fx2)
+    expect(r2.ok).toBe(true)
+    expect(fx2.orders[0].scene).toBe('commercial')
+    expect(fx2.orders[0].sceneName).toBe('商用')
+    expect(fx2.orders[0].equipType).toBe('coldStore')
+    expect(fx2.orders[0].equipTypeName).toBe('冷库机组')
+
+    // 老客户端(无 equipType):equipType 字段落空串,scene 走原样
+    const fx3 = fixtures()
+    await publish(baseEvent(), fx3)
+    expect(fx3.orders[0].equipType).toBe('')
+    expect(fx3.orders[0].equipTypeName).toBe('')
   })
 })
 
@@ -410,5 +453,54 @@ describe('联系方式拦截:desc/address 是广播面,贴联系方式直接拒'
     e.address = '天河区某小区3栋2单元801室'
     const { res } = await publish(e, fx)
     expect(res.ok).toBe(true)
+  })
+})
+
+describe('可见师傅计数 noMaster:发单预期管理', () => {
+  const masterInCity = (over = {}) => Object.assign({
+    _id: 'm1', openid: 'm1', status: 'approved', cityKey: '广州', categories: ['repair', 'clean']
+  }, over)
+
+  test('同城有师傅勾选该品类 -> noMaster 为 false', async () => {
+    const fx = fixtures()
+    fx.masters = [masterInCity()]
+    const { res } = await publish(baseEvent(), fx)
+    expect(res.ok).toBe(true)
+    expect(res.noMaster).toBe(false)
+  })
+
+  test('同城师傅都没勾选该品类 -> noMaster 为 true(新品类扩容期)', async () => {
+    const fx = fixtures()
+    fx.masters = [masterInCity()]
+    const e = baseEvent()
+    e.categories = ['coldRepair']
+    const { res } = await publish(e, fx)
+    expect(res.ok).toBe(true)
+    expect(res.noMaster).toBe(true)
+  })
+
+  test('师傅在别的城市/未过审 -> 不计入,noMaster 为 true', async () => {
+    const fx = fixtures()
+    fx.masters = [
+      masterInCity({ _id: 'm2', openid: 'm2', cityKey: '深圳' }),
+      masterInCity({ _id: 'm3', openid: 'm3', status: 'pending' })
+    ]
+    const { res } = await publish(baseEvent(), fx)
+    expect(res.ok).toBe(true)
+    expect(res.noMaster).toBe(true)
+  })
+
+  test('计数查询失败:不阻断发单,默认不提示(尽力而为)', async () => {
+    const fx = fixtures()
+    global.__failCount = (col) => col === 'masters'
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { res } = await publish(baseEvent(), fx)
+      expect(res.ok).toBe(true)
+      expect(res.noMaster).toBe(false)
+    } finally {
+      delete global.__failCount
+      errSpy.mockRestore()
+    }
   })
 })

@@ -3,7 +3,7 @@ const { formatTime, callFn, formatFee } = require('../../utils/util')
 const config = require('../../utils/config')
 
 // showModal 的 editable 输入框无法限长,超长提交会被服务端整段拒绝而弹窗已关、内容全丢;
-// 提交前按服务端上限截断保底(止血版,自定义弹层的彻底方案见 )
+// 提交前按服务端上限截断保底
 const REASON_MAX = 100    // 与 cancelOrder/confirmOrder 服务端上限一致
 const COMPLAIN_MAX = 500  // 与 complain 服务端上限一致
 function clip(text, max) {
@@ -95,7 +95,7 @@ Page({
         moreItems: this.buildMoreItems(o, res.role),
         moreOpen: false,
         publishedAtText: formatTime(o.publishedAt),
-        sceneLabel: sceneName(o.scene) || '家用',
+        sceneLabel: o.equipTypeName || sceneName(o.scene) || '家用', // 新单显示设备类型(如商用中央空调),老单回退家用/商用
         feeText: formatFee(fee),
         walletBalance: res.walletBalance !== undefined ? res.walletBalance : null,
         balanceText: res.walletBalance !== undefined ? formatFee(res.walletBalance) : '',

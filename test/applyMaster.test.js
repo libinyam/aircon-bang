@@ -1,6 +1,6 @@
 // applyMaster 入驻资质校验(分槽位收集)
 // 关键约束:qualTypes 与 qualPhotos 必须平行一致(admin 端按下标配对展示);
-// 身份证两面硬性必传,不留不分类的兼容入口(,上线前无老客户端)
+// 身份证两面硬性必传,不留不分类的兼容入口
 const { fakeDb } = require('./stubs/fakeDb')
 
 // 最小合法 JPEG:魔数 FF D8 FF(mediaFile 只验文件头与大小)
@@ -89,7 +89,7 @@ describe('applyMaster 分槽位资质校验', () => {
     expect(r.msg).toContain('最多3张')
   })
 
-  test('冒用他人 openid 路径的照片 -> 拒绝( 归属校验回归)', async () => {
+  test('冒用他人 openid 路径的照片 -> 拒绝', async () => {
     const ev = baseEvent('m1')
     ev.idCardBack = fid('other-user', 'back')
     const r = await apply('m1', ev, fakeDb({ masters: [], media_checks: [] }))
@@ -239,6 +239,58 @@ describe('applyMaster 分槽位资质校验', () => {
   })
 })
 
+describe('updateCategories 服务能力自助调整', () => {
+  const approvedMaster = (over = {}) => Object.assign({
+    _id: 'm1', openid: 'm1', status: 'approved', categories: ['repair', 'clean'],
+    memberExpireAt: Date.now() + 86400000,
+    stats: { done: 0, reviewCount: 0, totalStars: 0, cancelled: 0 }
+  }, over)
+
+  test('认证师傅补充新品类:落库即生效', async () => {
+    const fx = { masters: [approvedMaster()] }
+    const r = await apply('m1', { action: 'updateCategories', categories: ['repair', 'clean', 'coldRepair', 'chillerRepair'] }, fakeDb(fx))
+    expect(r.ok).toBe(true)
+    expect(fx.masters[0].categories).toEqual(['repair', 'clean', 'coldRepair', 'chillerRepair'])
+  })
+
+  test('收缩品类也允许(取消勾选即不再接该类单)', async () => {
+    const fx = { masters: [approvedMaster()] }
+    const r = await apply('m1', { action: 'updateCategories', categories: ['repair'] }, fakeDb(fx))
+    expect(r.ok).toBe(true)
+    expect(fx.masters[0].categories).toEqual(['repair'])
+  })
+
+  test('与现有集合相同(顺序不同):幂等返回成功,不改动档案', async () => {
+    const fx = { masters: [approvedMaster()] }
+    const r = await apply('m1', { action: 'updateCategories', categories: ['clean', 'repair'] }, fakeDb(fx))
+    expect(r.ok).toBe(true)
+    expect(fx.masters[0].categories).toEqual(['repair', 'clean'])
+  })
+
+  test.each([
+    ['非师傅', []],
+    ['审核中', [approvedMaster({ status: 'pending' })]],
+    ['被驳回', [approvedMaster({ status: 'rejected' })]]
+  ])('%s -> 拒绝', async (_label, masters) => {
+    const fx = { masters }
+    const r = await apply('m1', { action: 'updateCategories', categories: ['coldRepair'] }, fakeDb(fx))
+    expect(r.ok).toBe(false)
+    expect(r.msg).toContain('仅认证师傅')
+  })
+
+  test.each([
+    ['空数组', [], '不合法'],
+    ['非数组', undefined, '不合法'],
+    ['混入未定义品类', ['repair', 'tv'], '不合法']
+  ])('%s -> 拒绝', async (_label, categories, msgPart) => {
+    const fx = { masters: [approvedMaster()] }
+    const r = await apply('m1', { action: 'updateCategories', categories }, fakeDb(fx))
+    expect(r.ok).toBe(false)
+    expect(r.msg).toContain(msgPart)
+    expect(fx.masters[0].categories).toEqual(['repair', 'clean'])
+  })
+})
+
 describe('资质材料类型的前后端契约', () => {
   test('前端 QUAL_TYPES 与后端母本 QUAL_TYPE 的 key 集合一致', () => {
     const { QUAL_TYPES } = require('../miniprogram/utils/constants')
@@ -292,7 +344,7 @@ describe('updateAvatar 展示头像(入驻后选填,不卡在申请环节)', () 
     }
   })
 
-  test('冒用他人命名空间的文件 -> 拒绝( 归属校验同口径)', async () => {
+  test('冒用他人命名空间的文件 -> 拒绝', async () => {
     const fx = { masters: [approvedMaster()], media_checks: [] }
     const r = await apply('m1', { action: 'updateAvatar', avatarPhoto: afid('other', 'a') }, fakeDb(fx))
     expect(r.ok).toBe(false)

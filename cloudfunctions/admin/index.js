@@ -131,7 +131,7 @@ const actions = {
       .orderBy('startedAt', 'desc').limit(1).get().catch(() => ({ data: [] }))).data[0] || null
     const cronAgeHours = lastCron
       ? Math.round((Date.now() - new Date(lastCron.startedAt).getTime()) / 3600000 * 10) / 10
- : null
+      : null
 
     // 图片送检超过2小时仍 pending:回调没配置或回调失败的信号
     const mediaStuck = (await db.collection('media_checks').where({
@@ -146,7 +146,7 @@ const actions = {
 
     const openComplaints = (await db.collection('complaints').where({ status: 'open' }).count()
       .catch(() => ({ total: 0 }))).total
-    // 删除申请:open/pending_retry 都算待办;10天未执行完预警(隐私文案承诺15个工作日,)
+    // 删除申请:open/pending_retry 都算待办;10天未执行完预警
     const openDel = (await db.collection('deletion_requests')
       .where({ status: _.in(['open', 'pending_retry']) }).limit(1000).get()
       .catch(() => ({ data: [] }))).data
@@ -193,7 +193,7 @@ const actions = {
       data: Object.assign(
         pass
           ? { status: 'approved', rejectReason: '' }
- : { status: 'rejected', rejectReason: reason || '资料不符合要求' },
+          : { status: 'rejected', rejectReason: reason || '资料不符合要求' },
         { operator: openid, auditedAt: db.serverDate() }
       )
     })
@@ -461,6 +461,10 @@ const actions = {
   //   reviews           星级/内容保留(已聚合进师傅评分,发布时经内容安全),openid 解除关联
   //   complaints        已关闭的保留内容作纠纷处理凭证,fromOpenid 解除关联;未结投诉是阻断项
   //   member_logs       保留(账务凭证:金额/月数/时间/操作人),仅清 masterName
+  //   wallets           删除余额文档(读取方均容忍缺档按零余额处理,首次充值/调账自动重建;
+  //                     删除优先于清零——清零会留下 openid 键的空档;未消费余额应先人工退回再删号)
+  //   wallet_logs       保留(账务凭证:充值/扣费/退款流水),openid 解除关联防回流复联;
+  //                     grab/refund 流水 _id 内嵌的 openid 段保留——仅服务端与管理后台可见,不随响应下发
   //   media_checks      保留(仅 traceId 技术元数据;fileID 路径含 openid 已置空,文件本体已删除)
   //   upload_logs       删文档(pending 的先删登记文件)
   //   deletion_requests 本工单即处理凭证,保留
@@ -503,6 +507,7 @@ const actions = {
       ordersAnonymized: 0, masterOrdersAnonymized: 0, reviewsUnlinked: 0,
       complaintsUnlinked: 0, uploadLogsRemoved: 0, filesDeleted: 0,
       listingsRemoved: 0, contactLogsRemoved: 0, mediaChecksUnlinked: 0,
+      walletRemoved: false, walletLogsUnlinked: 0,
       userRemoved: false, masterRemoved: false
     }
     const tryDelete = async (files, tag) => {
@@ -540,7 +545,7 @@ const actions = {
     const cl = await db.collection('contact_logs').where({ viewerOpenid: target }).remove()
     summary.contactLogsRemoved = (cl.stats && cl.stats.removed) || 0
 
-    // 作为用户的订单:照片删除成功才匿名化,失败保留 fileID 线索待重试(与  同策略)
+    // 作为用户的订单:照片删除成功才匿名化,失败保留 fileID 线索待重试
     const anonymizedOrderIds = []
     for (const o of userOrders) {
       if (!(await tryDelete(o.photos, 'order photos'))) continue
@@ -572,6 +577,18 @@ const actions = {
     const r3 = await db.collection('complaints').where({ fromOpenid: target, status: 'closed' })
       .update({ data: { fromOpenid: 'deleted' } })
     summary.complaintsUnlinked = r3.stats.updated
+
+    // 钱包余额文档:直接删除——读取方均容忍缺档(按零余额处理),首次充值/
+    // 调账会自动重建(add-if-missing);删除优先于清零,注销承诺清除个人数据。
+    // 未消费余额应在执行前按服务条款人工退回,删号即视为放弃
+    const rw = await db.collection('wallets').where({ _id: target }).remove()
+    summary.walletRemoved = ((rw.stats && rw.stats.removed) || 0) > 0
+    // 钱包流水:账务凭证保留(与 member_logs 同口径),openid 解除关联
+    // 防同 openid 回流后旧流水复联;grab/refund 流水 _id 内嵌 openid 段保留,
+    // 仅服务端与管理后台可见,不随任何响应下发
+    const rwl = await db.collection('wallet_logs').where({ openid: target })
+      .update({ data: { openid: 'deleted' } })
+    summary.walletLogsUnlinked = rwl.stats.updated
 
     // 师傅档案:作废未完成送检,资质照片(含历史孤儿)与展示头像删净才删档案;
     // 头像同属师傅个人照片(真人照),漏删会在注销后继续泄露
@@ -620,6 +637,7 @@ const actions = {
     }
     const retained = [
       'member_logs:账务凭证保留,已清姓名',
+      'wallet_logs:充值/扣费/退款流水账务凭证保留,openid 已解除关联',
       'reviews/已关闭complaints:内容保留作服务与纠纷凭证,主体标识已解除关联',
       'media_checks:仅 traceId 技术元数据保留,fileID 路径含 openid 已置空,文件本体已删除'
     ]

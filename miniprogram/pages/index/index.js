@@ -1,4 +1,4 @@
-const { CATEGORIES, ORDER_STATUS } = require('../../utils/constants')
+const { CATEGORIES, ORDER_STATUS, POPULAR_SERVICES } = require('../../utils/constants')
 const { callFn } = require('../../utils/util')
 const config = require('../../utils/config')
 
@@ -12,9 +12,19 @@ function greetingText(hour) {
   return '晚上好'
 }
 
+const SEARCH_KEYWORDS = [
+  '格力/美的开机不制冷？',
+  '挂机滴水/漏水快速维修',
+  '全拆深度清洗高温消毒',
+  '环保加氟·压力当面测',
+  '专业移机拆装·免费打孔',
+  '说说空调的问题'
+]
+
 Page({
   data: {
     categories: CATEGORIES,
+    hotServices: POPULAR_SERVICES,   // 常见服务参考价卡(纯展示,下单仍当面谈价)
     statusMap: ORDER_STATUS,
     activeOrders: [],      // 我发的进行中订单
     masterOrders: [],      // 我接的进行中订单(认证师傅才有)
@@ -22,15 +32,35 @@ Page({
     masterEntryText: '我要接单',
     masterJoinText: '去入驻',
     greeting: '',
+    searchPlaceholder: SEARCH_KEYWORDS[0],
     heroImage: '', // 换链成功才有值(https 临时链接),失败/留空走渐变回退版
     statusBarHeight: 44
   },
+  _searchTimer: null,
+  _searchIndex: 0,
 
   onLoad() {
     this.setData({
       statusBarHeight: getApp().globalData.statusBarHeight || 44
     })
     this.resolveHero()
+  },
+
+  startSearchTicker() {
+    this.stopSearchTicker()
+    this._searchTimer = setInterval(() => {
+      this._searchIndex = (this._searchIndex + 1) % SEARCH_KEYWORDS.length
+      this.setData({
+        searchPlaceholder: SEARCH_KEYWORDS[this._searchIndex]
+      })
+    }, 3200)
+  },
+
+  stopSearchTicker() {
+    if (this._searchTimer) {
+      clearInterval(this._searchTimer)
+      this._searchTimer = null
+    }
   },
 
   // hero 实景图:包内本地路径直接用;cloud:// fileID 需先换临时链接(存储"仅创建者可读写"
@@ -66,6 +96,15 @@ Page({
     this.setData({ greeting: greetingText(new Date().getHours()) })
     this.refreshRole()
     this.loadActiveOrders()
+    this.startSearchTicker()
+  },
+
+  onHide() {
+    this.stopSearchTicker()
+  },
+
+  onUnload() {
+    this.stopSearchTicker()
   },
 
   async refreshRole() {
@@ -79,19 +118,24 @@ Page({
   },
 
   async loadActiveOrders() {
+    // 代次保护:onShow 每次进首页都拉,快速切 tab 造成并发时,
+    // 晚到的旧快照不能覆盖新快照
+    const gen = this._ordersGen = (this._ordersGen || 0) + 1
     const g = await getApp().getUser()
     // 认证师傅另查"我接的单":首页也一览接的单,不必绕 我的→我的接单。两个列表并行,互不拖累首屏
+    // silent 接上 callFn:辅助信息的网络失败不弹 toast 打扰首页
     const jobs = [
-      callFn('getOrders', { action: 'userList', activeOnly: true })
+      callFn('getOrders', { action: 'userList', activeOnly: true }, { silent: true })
         .catch(e => { console.error('loadActiveOrders failed', e); return null })
     ]
     if (g.master && g.master.status === 'approved') {
       jobs.push(
-        callFn('getOrders', { action: 'masterList', activeOnly: true })
+        callFn('getOrders', { action: 'masterList', activeOnly: true }, { silent: true })
           .catch(e => { console.error('loadMasterOrders failed', e); return null })
       )
     }
     const [pub, mine] = await Promise.all(jobs)
+    if (gen !== this._ordersGen) return
     // 静默失败但留日志:首页进行中订单是辅助信息,不打扰用户;
     // mine===undefined 表示本次身份不是师傅(未发起查询),此时清空,防止角色变化后残留旧数据
     this.setData({

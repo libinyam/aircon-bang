@@ -42,6 +42,13 @@ function putMine(rows, noMore) {
   cache = { at: Date.now(), rows, noMore }
 }
 
+// 弃缓存:第 0 页刷新失败时由页面调用——"旧缓存只影响首屏一瞬间"的前提是刷新必然
+// 收敛;刷新失败还留新鲜缓存,下次进入会整屏渲染已不成立的状态(下架后再进还显示
+// 在售、按钮照常可点),弃掉后走全量 loading
+function dropMine() {
+  cache = null
+}
+
 // 后台预取(进「我的」tab 触发):静默失败——预热只是体验优化,不该在
 // 「我的」tab 弹网络 toast;新鲜期内跳过,防快速切 tab 时重复打
 function prefetchMine() {
@@ -51,4 +58,4 @@ function prefetchMine() {
     .catch(() => false)
 }
 
-module.exports = { mapRows, peekMine, putMine, prefetchMine }
+module.exports = { mapRows, peekMine, putMine, dropMine, prefetchMine }

@@ -5,7 +5,7 @@ const db = cloud.database()
 const _ = db.command
 const crypto = require('crypto')
 
-const { SCENE_KEYS, SCENES, SLOTS, STATUS, normalizeCity, normalizeCategories, categoryText } = require('./biz')
+const { SCENE_KEYS, SCENES, EQUIP_TYPES, SLOTS, STATUS, normalizeCity, normalizeCategories, categoryText } = require('./biz')
 const { makeBizNo, nextBizNo } = require('./bizNo')
 const textSafe = require('./textSafe')(cloud)
 // 联系方式拦截:母本正则与商品侧同源,电话走独立 phone 字段收集
@@ -28,7 +28,7 @@ function makeOrderId(openid, requestId) {
 exports.main = async (event) => {
   const start = Date.now()
   const { OPENID } = cloud.getWXContext()
-  const { requestId, categories, category, scene, desc, photos = [], location, address, addressDetail = '', cityName, expectDate, slotKey, phone, contactName } = event
+  const { requestId, categories, category, scene, equipType, desc, photos = [], location, address, addressDetail = '', cityName, expectDate, slotKey, phone, contactName } = event
 
   if (typeof requestId !== 'string' || !requestId || requestId.length > 64) return bad('请求标识缺失,请返回重试')
   const orderId = makeOrderId(OPENID, requestId)
@@ -44,8 +44,16 @@ exports.main = async (event) => {
   // 品类多选:categories 数组为准,老客户端单选 category 字符串兼容;非法 key / 空选都拒
   const cats = normalizeCategories(categories || category)
   if (!cats || !cats.length) return bad('请选择服务类型')
-  // 家用/商用决定接单费档位(¥20/¥300),发单时必须选定
-  if (!SCENE_KEYS.includes(scene)) return bad('请选择空调类型(家用/商用)')
+  // 设备类型优先(新版客户端选 8 类设备):scene 费档由服务端按设备类型推导,
+  // 客户端传的 scene 不作数——接单费以服务端为准,不能信入参。
+  // 老客户端只传 scene(家用/商用)不传 equipType,走原校验保持兼容
+  let sceneKey = scene
+  let equip = null
+  if (equipType) {
+    equip = EQUIP_TYPES[equipType] || null
+    if (!equip) return bad('请选择设备类型')
+    sceneKey = equip.scene
+  } else if (!SCENE_KEYS.includes(scene)) return bad('请选择空调类型(家用/商用)')
   if (!desc || desc.trim().length < 5) return bad('请描述一下故障情况(至少5个字)')
   if (desc.length > 500) return bad('描述太长了')
   // 坐标校验:云函数是最终信任边界,直调伪造的字符串/NaN/越界值不能等到
@@ -131,8 +139,10 @@ exports.main = async (event) => {
     category: cats[0],               // 首选项:兼容存量读方(展示/通知兜底),匹配一律走 categories
     categories: cats,                // 多选全集:订单池/抢单/围观按此项与师傅能力求交集
     categoryName: categoryText(cats),
-    scene,                 // 家用/商用:接单费档位依据(grabOrder 按此扣费)
-    sceneName: SCENES[scene].name,
+    scene: sceneKey,         // 家用/商用:接单费档位依据(grabOrder 按此扣费),由 equipType 推导或老客户端直传
+    sceneName: SCENES[sceneKey].name,
+    equipType: equipType || '',        // 设备类型(8 类):新客户端发单必填,老单为 ''
+    equipTypeName: equip ? equip.name : '',
     desc: desc.trim(),
     photos,
     location: db.Geo.Point(location.longitude, location.latitude),
@@ -161,6 +171,16 @@ exports.main = async (event) => {
     return badAndClean('发布失败,请重试')
   }
   log.info('order published', { orderId: res._id, orderNo, openid: OPENID, photoCount: photos.length, ms: Date.now() - start })
+
+  // 可见师傅计数:同城勾选了本单品类的 approved 师傅为 0 时,回 noMaster 让前端
+  // 给发单人预期管理(新品类扩容期常见)。只影响提示文案,不阻断发单;计数失败默认不提示
+  let noMaster = false
+  try {
+    const c = await db.collection('masters').where({
+      status: 'approved', cityKey, categories: _.in(cats)
+    }).count()
+    noMaster = c.total === 0
+  } catch (e) { log.error('visible master count failed', { orderId: res._id, cityKey }, e) }
 
   // 图片异步送检:结果回调到 mediaCheckCallback 云函数(需在云开发控制台配置消息推送,见 README)
   // 送检失败不阻断发单(fail-open,与文本检测策略一致)
@@ -226,7 +246,7 @@ exports.main = async (event) => {
     if (notifyTimer) clearTimeout(notifyTimer)   // 不留悬挂定时器
   }
 
-  return { ok: true, orderId: res._id, orderNo }
+  return { ok: true, orderId: res._id, orderNo, noMaster }
 }
 
 // 仅供离线单测使用,云端运行不受影响

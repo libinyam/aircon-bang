@@ -19,17 +19,17 @@ async function updateAvatar(event, OPENID) {
   }
   const master = (await db.collection('masters').where({ openid: OPENID }).get()).data[0]
   if (!master || master.status !== 'approved') return bad('仅认证师傅可设置展示头像')
-  // 魔数/大小校验不通过即删文件拒绝( 同口径,避免孤儿堆积)
+  // 魔数/大小校验不通过即删文件拒绝
   const imgErr = await verifyImages([avatarPhoto])
   if (imgErr) {
     await cloud.deleteFile({ fileList: [avatarPhoto] }).catch(e => console.error('clean rejected avatar failed', e))
     return bad(imgErr)
   }
 
-  // 先落库新头像,再删旧文件( 同口径:反过来会出现"档案指向已删文件"的窗口)
+  // 先落库新头像,再删旧文件
   const old = master.avatarPhoto
   await db.collection('masters').doc(master._id).update({ data: { avatarPhoto } })
-  // 作废旧头像的未完成检测,避免旧回调把结果打到新头像上( 同口径)
+  // 作废旧头像的未完成检测,避免旧回调把结果打到新头像上
   await db.collection('media_checks').where({ targetId: master._id, type: 'masterAvatar', status: 'pending' })
     .update({ data: { status: 'superseded' } }).catch(e => console.error('supersede avatar checks failed', e))
   if (old && old !== avatarPhoto) {
@@ -58,10 +58,25 @@ async function updateAvatar(event, OPENID) {
   return { ok: true, avatarUrl }
 }
 
+// 服务能力自助调整:品类扩六后,存量 approved 师傅档案里没有新品类,
+// 大厅匹配不到冷库/水冷单。品类本就是师傅自声明(审核管的是实名资质,不逐品类核验),
+// 补充/收缩能力不需重审,落库即生效,大厅 tab 与匹配下一轮刷新自然带上
+async function updateCategories(event, OPENID) {
+  const master = (await db.collection('masters').where({ openid: OPENID }).get()).data[0]
+  if (!master || master.status !== 'approved') return bad('仅认证师傅可调整服务能力')
+  const cats = [...new Set(Array.isArray(event.categories) ? event.categories : [])]
+  if (!cats.length || cats.some(c => !CATEGORY_KEYS.includes(c))) return bad('服务能力选择不合法')
+  const old = (master.categories || []).slice().sort().join(',')
+  if (old === cats.slice().sort().join(',')) return { ok: true, categories: cats }
+  await db.collection('masters').doc(master._id).update({ data: { categories: cats } })
+  return { ok: true, categories: cats }
+}
+
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   // 师傅自服务动作(不进入驻申请主流程)
   if (event.action === 'updateAvatar') return updateAvatar(event, OPENID)
+  if (event.action === 'updateCategories') return updateCategories(event, OPENID)
   const {
     realName, phone, serviceCity, categories = [], intro = '', companyName = '',
     idCardFront = '', idCardBack = '', certPhotos = [], bizLicensePhoto = ''
@@ -81,7 +96,7 @@ exports.main = async (event) => {
 
   // 资质材料:分槽位收集,落库为扁平 qualPhotos + 平行 qualTypes 标注(审核端按标签分组展示)
   // 删除/送检/归属校验等既有机制都只认扁平数组,不感知类型
-  // 身份证两面硬性必传(:上线前无老客户端,不留不分类的兼容入口,直调也绕不开实名材料)
+  // 身份证两面硬性必传
   if (typeof idCardFront !== 'string' || !idCardFront) return bad('请上传身份证人像面照片')
   if (typeof idCardBack !== 'string' || !idCardBack) return bad('请上传身份证国徽面照片')
   if (bizLicensePhoto && typeof bizLicensePhoto !== 'string') return bad('营业执照照片不合法')

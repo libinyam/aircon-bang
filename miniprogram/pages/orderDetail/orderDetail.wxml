@@ -1,7 +1,10 @@
 <view class="container" wx:if="{{order}}">
-  <!-- 状态横幅 -->
-  <view class="status-banner" style="background:{{statusMap[order.status].color}}">
-    <view class="status-label">{{statusMap[order.status].label}}</view>
+  <!-- 状态横幅(v4.1 高端化:白底墨字大标题+状态呼吸点) -->
+  <view class="status-banner">
+    <view class="status-label">
+      <view class="status-dot" style="background:{{statusMap[order.status].color}}"></view>
+      <text>{{statusMap[order.status].label}}</text>
+    </view>
     <view class="status-sub" wx:if="{{order.status === 'published'}}">等待同城师傅接单,接单后会通知您</view>
     <view class="status-sub" wx:if="{{order.status === 'accepted' && role === 'user'}}">师傅已接单,可电话联系约定上门</view>
     <view class="status-sub" wx:if="{{order.status === 'accepted' && role === 'master' && order.rejectCount}}">用户反馈未完成{{order.lastRejectReason ? ':' + order.lastRejectReason : ''}},请联系客户继续处理</view>
@@ -147,7 +150,7 @@
     <view class="action-row">
       <!-- 围观师傅:接单(按单扣费);余额不足转为充值引导,服务端 grabOrder 仍会校验 -->
       <button class="btn-primary flex-1" wx:if="{{role === 'viewer' && order.status === 'published'}}"
-              hover-class="hv-press" bindtap="grab" disabled="{{acting}}">{{balanceShortage ? '余额不足 · 去充值' : '立即接单 ¥' + feeText}}</button>
+              hover-class="hv-press" bindtap="grab" disabled="{{acting}}">{{balanceShortage ? '余额不足,去充值' : '立即接单 ¥' + feeText}}</button>
 
       <!-- 用户:published 取消是唯一动作,直出主按钮;其余主操作=确认完成 -->
       <button class="btn-danger-ghost flex-1" wx:if="{{role === 'user' && order.status === 'published'}}"

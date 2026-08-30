@@ -78,7 +78,7 @@
       <!-- 合规提示 + 举报 -->
       <view class="ld-notice">
         <view class="ld-notice-t">交易提醒</view>
-        <view class="ld-notice-p">线下当面交易 · 请验货后再付款 · 平台不代收任何款项</view>
+        <view class="ld-notice-p">当面验货后再付款,平台不代收任何款项</view>
         <view class="ld-report" bindtap="report">举报该商品</view>
       </view>
       <view class="spacer40"></view>

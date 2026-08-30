@@ -53,7 +53,10 @@ describe('market 市场列表', () => {
     expect(r.ok).toBe(true)
     expect(r.data).toHaveLength(1)
     const row = r.data[0]
-    expect(row.cover).toBe('https://tmp/' + fid('a'))
+    // 封面经匿名副本换链:是临时链且不含卖家 openid/原始路径
+    expect(row.cover).toMatch(/^https:\/\/tmp\//)
+    expect(row.cover).not.toContain('m1')
+    expect(row.cover).not.toContain('listings/')
     expect(row).not.toHaveProperty('photos')
     expect(row).not.toHaveProperty('desc')
     expect(row).not.toHaveProperty('sellerOpenid')
@@ -70,7 +73,7 @@ describe('market 市场列表', () => {
     expect((await call('market', { condition: 'weird' }, fx)).data).toHaveLength(2)
   })
 
-  test('围观视角换链失败不回退 fileID(cover 置空, 同口径)', async () => {
+  test('围观视角换链失败不回退 fileID(cover 置空同口径)', async () => {
     global.__mockTempFileURL = (fileList) => ({ fileList: fileList.map(f => ({ fileID: f })) })
     const r = await call('market', {}, fixtures())
     delete global.__mockTempFileURL
@@ -103,10 +106,15 @@ describe('detail 详情按角色分层', () => {
     expect(r.sellerVerified).toBe(true)
     expect(r.sellerStats).toEqual({ done: 8, reviewCount: 5, totalStars: 24 })
     expect(r.data.desc).toBe('成色不错')
-    expect(r.data.photos).toEqual(['https://tmp/' + fid('a'), 'https://tmp/' + fid('b')])
+    // 围观详情照片经匿名副本换链:两张都在且不含卖家 openid
+    expect(r.data.photos).toHaveLength(2)
+    for (const u of r.data.photos) {
+      expect(u).toMatch(/^https:\/\/tmp\//)
+      expect(u).not.toContain('listings/m1')
+    }
     const json = JSON.stringify(r)
     expect(json).not.toContain(PHONE)
-    expect(json).not.toContain('sellerOpenid')  // openid 字段不下发(临时链接路径含 openid 与 getOrders 现状同口径)
+    expect(json).not.toContain('sellerOpenid')  // openid 字段不下发;临时链路径也不再含 openid
     expect(json).not.toContain('张三丰')         // realName 全名不泄露,只给派生的"张师傅"
   })
 

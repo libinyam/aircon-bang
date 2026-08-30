@@ -12,7 +12,7 @@ const config = require(path.join(MP, 'utils', 'config.js'))
 const BRAND = config.BRAND_NAME
 
 // 历史名称(更名后不得再出现)
-const STALE = [/空调快修(?!帮)/, /空调快修帮/]
+const STALE = [/空调快修(?!帮)/, /空调快修帮/, /新霞光/]
 
 function walk(dir, exts, acc = []) {
   for (const name of fs.readdirSync(dir)) {

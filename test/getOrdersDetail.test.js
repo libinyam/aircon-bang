@@ -1,4 +1,4 @@
-// getOrders detail 四分支权限回归:
+// getOrders detail 四分支权限回归():
 // owner 全貌 / master 全貌 / 同城同品类师傅围观脱敏版 / 其他人拒绝
 const { fakeDb } = require('./stubs/fakeDb')
 
@@ -70,8 +70,11 @@ describe('detail 权限四分支', () => {
     expect(r.data).not.toHaveProperty('addressDetail')
     expect(r.data).not.toHaveProperty('userOpenid')
     expect(r.data.location.coordinates).toEqual([113.26, 23.13])
-    // 照片经云函数换成临时链接
-    expect(r.data.photos).toEqual(['https://tmp/cloud://x/orders/user-1/a.jpg'])
+    // 照片经匿名副本换临时链下发:URL 不得含发单人 openid
+    expect(r.data.photos).toHaveLength(1)
+    expect(r.data.photos[0]).toMatch(/^https:\/\/tmp\//)
+    expect(r.data.photos[0]).not.toContain('user-1')
+    expect(JSON.stringify(r.data)).not.toContain('orders/user-1')
   })
 
   test.each([
@@ -128,7 +131,7 @@ describe('detail 围观资格:品类多选任一交集', () => {
   })
 })
 
-describe('viewer 钱包余额随详情下发(接单费制,原  会员口径)', () => {
+describe('viewer 钱包余额随详情下发(接单费制,原会员口径)', () => {
   test('无钱包文档:walletBalance 0(详情仍可看,前端引导充值)', async () => {
     const r1 = await callDetail('master-2', 'o-published')
     expect(r1.ok).toBe(true)
@@ -244,11 +247,12 @@ describe('masterStats 头像临时链接(信任卡 v4.1)', () => {
     })
   }
 
-  test('有头像:换临时链接随口碑下发', async () => {
+  test('有头像:经匿名副本换临时链随口碑下发,URL 不含师傅 openid', async () => {
     const m = JSON.parse(JSON.stringify(MASTERS[0]))
     m.avatarPhoto = 'cloud://x/avatars/master-1/a.jpg'
     const r = await callWithMaster(m)
-    expect(r.masterStats.avatar).toBe('https://tmp/cloud://x/avatars/master-1/a.jpg')
+    expect(r.masterStats.avatar).toMatch(/^https:\/\/tmp\//)
+    expect(r.masterStats.avatar).not.toContain('master-1')
     expect(r.masterStats.done).toBe(8)
   })
 

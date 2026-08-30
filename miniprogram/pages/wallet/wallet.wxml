@@ -1,9 +1,12 @@
 <view class="page">
   <!-- 余额卡 -->
   <view class="w-hero">
-    <view class="w-hero-label">钱包余额(元)</view>
-    <view class="w-hero-num">¥{{balanceText}}</view>
-    <view class="w-hero-sub">接单自动扣服务费 · 家用 ¥20/单 · 商用 ¥300/单</view>
+    <view class="w-hero-content">
+      <view class="w-hero-label">钱包余额(元)</view>
+      <view class="w-hero-num">¥{{balanceText}}</view>
+      <view class="w-hero-sub">接单自动扣服务费:家用单 ¥20,商用单 ¥300</view>
+    </view>
+    <image class="w-hero-img" src="/assets/wallet-hero.png" mode="aspectFit" />
   </view>
 
   <!-- 充值 -->

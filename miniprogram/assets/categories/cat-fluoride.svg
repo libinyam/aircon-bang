@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="pod-f" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0FDF8"/>
+      <stop offset="100%" stop-color="#D3F5E7"/>
+    </linearGradient>
+    <linearGradient id="gauge-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#1E40AF"/>
+    </linearGradient>
+    <linearGradient id="gauge-dial" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </linearGradient>
+    <linearGradient id="valve-brass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <filter id="shadow-pod-f" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#059669" flood-opacity="0.12"/>
+    </filter>
+    <filter id="shadow-tool-f" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#171C24" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <!-- 底托圆角背景 -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#pod-f)" filter="url(#shadow-pod-f)" stroke="#B8EBD4" stroke-width="1.5"/>
+  <!-- 底部铜阀门与挂钩 -->
+  <g filter="url(#shadow-tool-f)">
+    <path d="M 64 26 C 64 16 76 16 76 24" fill="none" stroke="#64748B" stroke-width="3" stroke-linecap="round"/>
+    <rect x="58" y="80" width="12" height="16" rx="2" fill="url(#valve-brass)"/>
+    <rect x="42" y="86" width="44" height="7" rx="3" fill="url(#valve-brass)"/>
+    <path d="M 64 96 C 64 104 50 106 46 102" fill="none" stroke="#2563EB" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <!-- 3D 压力表盘 -->
+  <g filter="url(#shadow-tool-f)">
+    <circle cx="64" cy="54" r="32" fill="url(#gauge-rim)"/>
+    <circle cx="64" cy="54" r="26" fill="url(#gauge-dial)"/>
+    <path d="M 44 60 A 20 20 0 0 1 76 38" fill="none" stroke="#10B981" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M 76 38 A 20 20 0 0 1 84 60" fill="none" stroke="#EF4444" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="64" y1="32" x2="64" y2="35" stroke="#64748B" stroke-width="1.5"/>
+    <line x1="48" y1="40" x2="50" y2="42" stroke="#64748B" stroke-width="1.5"/>
+    <line x1="80" y1="40" x2="78" y2="42" stroke="#64748B" stroke-width="1.5"/>
+    <line x1="64" y1="54" x2="70" y2="40" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="64" cy="54" r="3.5" fill="#1E293B"/>
+    <path d="M 44 44 A 24 24 0 0 1 78 34" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  </g>
+  <!-- 冰爽雪花点缀 -->
+  <g transform="translate(86, 68) scale(0.65)" filter="url(#shadow-tool-f)">
+    <circle cx="16" cy="16" r="16" fill="#0284C7"/>
+    <g stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round">
+      <line x1="16" y1="4" x2="16" y2="28"/>
+      <line x1="4" y1="16" x2="28" y2="16"/>
+      <line x1="8" y1="8" x2="24" y2="24"/>
+      <line x1="24" y1="8" x2="8" y2="24"/>
+    </g>
+  </g>
+</svg>
